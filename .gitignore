@@ -1,0 +1,52 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.aps
+*.bsc
+*.map
+*.obj
+*.ilk
+*.lib
+*.netmodule
+*.opensdf
+*.pdb
+*.pch
+*.pchi
+*.pgm
+*.resharper
+*.rgs
+*.sbr
+*.sdf
+*.tlog
+*.trx
+*.vc.db
+*.vcproj
+*.vcxproj.filters
+*.vcxproj.user
+*.wmdb
+# Build results
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+[Dd]ebugPublic/
+*.exe
+*.dll
+*.pdb
+*.lib
+*.exp
+# Test results
+TestResults/
+# NuGet
+.nuget/packages/
+*.nupkg
+*.snupkg
+# IDE specific files
+.vscode/
+# other common ignored files
+*.log
+*.cache
+npm-debug.log*
+node_modules/
+bower_components/
