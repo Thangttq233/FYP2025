@@ -3,6 +3,7 @@ using System;
 using FYP2025.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FYP2025.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250728233702_AddRefreshToken")]
+    partial class AddRefreshToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -239,15 +242,18 @@ namespace FYP2025.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ReasonRevoked")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ReplacedByToken")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("Revoked")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("RevokedByIp")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Token")

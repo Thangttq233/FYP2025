@@ -1,0 +1,20 @@
+﻿using FYP2025.Application.DTOs;
+using System.Threading.Tasks;
+
+namespace FYP2025.Application.Services.Auth
+{
+    public interface IAuthService
+    {
+        Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request, string ipAddress); 
+        Task<AuthResponseDto> LoginAsync(LoginRequestDto request, string ipAddress);
+        Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request, string ipAddress); // <--- THÊM DÒNG NÀY
+        Task<bool> RevokeRefreshTokenAsync(string token, string ipAddress); // <--- THÊM DÒNG NÀY
+        Task<AuthResponseDto> AssignRoleToUserAsync(string email, string roleName);
+        Task<AuthResponseDto> RemoveRoleFromUserAsync(string email, string roleName);
+        Task<List<string>> GetUserRolesAsync(string userId);
+        // Task<AuthResponseDto> LogoutAsync(string userId); 
+        // Task<UserDto> GetUserByIdAsync(string userId); 
+        // Task<UserDto> UpdateUserAsync(string userId, UpdateUserDto updateUserDto); 
+        // Task<bool> DeleteUserAsync(string userId); 
+    }
+}

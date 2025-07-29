@@ -2,6 +2,7 @@
 using AutoMapper;
 using FYP2025.Application.DTOs;
 using FYP2025.Domain.Entities;
+using FYP2025.Infrastructure.Data;
 using System.Linq;
 
 namespace FYP2025.Application.Mappers
@@ -48,6 +49,14 @@ namespace FYP2025.Application.Mappers
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.ImageUrl, opt => opt.Ignore()) // Có API riêng để cập nhật ảnh Product chính
                 .ForMember(dest => dest.Variants, opt => opt.Ignore()); // Variants có API riêng để quản lý
+
+            // Mapping cho User (ApplicationUser <-> UserDto)
+            CreateMap<ApplicationUser, UserDto>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.UserName))
+                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
+                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName))
+                .ForMember(dest => dest.DateOfBirth, opt => opt.MapFrom(src => src.DateOfBirth))
+                .ForMember(dest => dest.Roles, opt => opt.Ignore()); // Roles sẽ được gán thủ công vì cần UserManager
         }
     }
 }

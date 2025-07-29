@@ -8,8 +8,21 @@ using FYP2025.Domain.Repositories;
 using FYP2025.Infrastructure.Data.Repositories;
 using FYP2025.Application.Mappers;
 using System.Reflection;
+using Microsoft.AspNetCore.Identity; // Cho Identity
+using Microsoft.AspNetCore.Authentication.JwtBearer; // Cho JWT
+using Microsoft.IdentityModel.Tokens; // Cho TokenValidationParameters
+using System.Text;
+using FYP2025.Application.Services.Auth; // Cho AuthService (đảm bảo namespace này đúng)
+using Npgsql; // <--- THÊM USING NÀY CHO NPGSQL
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- GIẢI PHÁP CHO LỖI DATETIME.KIND=UNSPECIFIED ---
+// Đặt dòng này TRƯỚC AddDbContext
+// Nó cho phép Npgsql xử lý DateTime với Kind=Unspecified bằng cách coi chúng là Local time.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+// --- KẾT THÚC GIẢI PHÁP DATETIME.KIND ---
+
 
 // Đăng ký DbContext với PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -21,15 +34,61 @@ builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection(
 // Đăng ký PhotoService vào DI container
 builder.Services.AddScoped<IPhotoService, PhotoService>();
 
-// Đăng ký Repositories
+// Đăng ký Repositories (CHỈ MỘT LẦN)
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
-// Add AutoMapper
+// Đăng ký AuthService (CHỈ MỘT LẦN)
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Add AutoMapper (CHỈ MỘT LẦN)
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 builder.Services.AddControllers()
     .AddApplicationPart(Assembly.GetExecutingAssembly());
+
+// Cấu hình Identity
+builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders(); // Cần thiết cho các tính năng như reset mật khẩu
+
+
+// --- BẮT ĐẦU CẤU HÌNH JWT AUTHENTICATION ---
+
+// Lấy Secret Key từ cấu hình (ví dụ: appsettings.json)
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["Secret"];
+var issuer = jwtSettings["Issuer"];
+var audience = jwtSettings["Audience"];
+
+if (string.IsNullOrEmpty(secretKey) || string.IsNullOrEmpty(issuer) || string.IsNullOrEmpty(audience))
+{
+    // Đây là một kiểm tra an toàn, bạn nên có các giá trị này trong appsettings.json
+    throw new InvalidOperationException("JwtSettings: Secret, Issuer, or Audience is not configured. Please check appsettings.json");
+}
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true, // Xác thực nhà phát hành token
+        ValidateAudience = true, // Xác thực đối tượng token
+        ValidateLifetime = true, // Xác thực thời gian sống của token
+        ValidateIssuerSigningKey = true, // Xác thực khóa ký token
+        ValidIssuer = issuer, // Nhà phát hành hợp lệ
+        ValidAudience = audience, // Đối tượng hợp lệ
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)) // Khóa ký
+    };
+});
+
+builder.Services.AddAuthorization(); // <--- Đảm bảo dòng này có để kích hoạt phân quyền
+
+// --- KẾT THÚC CẤU HÌNH JWT AUTHENTICATION ---
 
 
 // Các cấu hình khác
@@ -44,55 +103,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+app.UseHttpsRedirection(); // <--- Giữ lại dòng này ở đây, không trùng lặp
 
-// Upload 1 ảnh
-app.MapPost("/upload-photo", async (IPhotoService photoService, HttpRequest request) =>
-{
-    if (!request.HasFormContentType)
-        return Results.BadRequest("Invalid form data");
-
-    var form = await request.ReadFormAsync();
-    var file = form.Files.FirstOrDefault();
-
-    if (file == null)
-        return Results.BadRequest("No file uploaded");
-
-    var result = await photoService.UploadPhotoAsync(file);
-
-    if (result.Error != null)
-        return Results.BadRequest(result.Error.Message);
-
-    return Results.Ok(new { Url = result.SecureUrl.ToString() });
-});
-
-// Upload nhiều ảnh
-app.MapPost("/upload-photos", async (IPhotoService photoService, HttpRequest request) =>
-{
-    if (!request.HasFormContentType)
-        return Results.BadRequest("Invalid form data");
-
-    var form = await request.ReadFormAsync();
-    var files = form.Files;
-
-    if (files.Count == 0)
-        return Results.BadRequest("No files uploaded");
-
-    var urls = new List<string>();
-
-    foreach (var file in files)
-    {
-        var result = await photoService.UploadPhotoAsync(file);
-
-        if (result.Error != null)
-            return Results.BadRequest(result.Error.Message);
-
-        urls.Add(result.SecureUrl.ToString());
-    }
-
-    return Results.Ok(urls);
-});
+// --- THÊM MIDDLEWARE XÁC THỰC VÀ PHÂN QUYỀN VÀO PIPELINE ---
+app.UseAuthentication(); // <--- PHẢI ĐẶT TRƯỚC UseAuthorization
+app.UseAuthorization();  // <--- THÊM DÒNG NÀY VÀO ĐÂY
+// --- KẾT THÚC THÊM MIDDLEWARE ---
 
 app.MapControllers();
-app.UseHttpsRedirection();
+
 app.Run();
