@@ -155,7 +155,7 @@ namespace FYP2025.Application.Services.Auth
 
             // Tạo Access Token và Refresh Token mới
             var newAuthResponse = await GenerateJwtToken(user, ipAddress);
-
+                
             // Cập nhật token cũ với replacedByToken
             refreshToken.ReplacedByToken = newAuthResponse.RefreshToken;
             _dbContext.Update(refreshToken);

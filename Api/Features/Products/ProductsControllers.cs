@@ -6,11 +6,10 @@ using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http; // Cần thiết cho IFormFile
+using Microsoft.AspNetCore.Http; 
 using System.IO;
 using System;
-using System.Linq; // Để sử dụng .Any() và .All()
-// using System.Text.Json; // Không cần nếu không dùng VariantsJson
+using System.Linq; 
 
 namespace FYP2025.Api.Features.Products
 {
@@ -73,7 +72,7 @@ namespace FYP2025.Api.Features.Products
         }
 
 
-        // POST api/products - API chính để tạo sản phẩm
+        // POST api/products 
         [HttpPost]
         public async Task<ActionResult<ProductDto>> CreateProduct([FromForm] CreateProductDto createProductDto)
         {
@@ -103,7 +102,6 @@ namespace FYP2025.Api.Features.Products
                 }
             }
             Console.WriteLine($"--- Kết thúc Debug ---");
-            // --- Kết thúc Debugging ---
 
             if (!await _categoryRepository.ExistsAsync(createProductDto.CategoryId))
             {
@@ -161,7 +159,7 @@ namespace FYP2025.Api.Features.Products
                 variant.ProductId = product.Id; // Gán khóa ngoại
                 variant.ImageUrl = variantUploadResult.SecureUrl.ToString(); // Gán URL ảnh đã upload cho variant
 
-                finalVariants.Add(variant); // Thêm variant đã hoàn chỉnh vào danh sách tạm
+                finalVariants.Add(variant); 
             }
 
             product.Variants = finalVariants; // Gán danh sách variants đã hoàn chỉnh vào sản phẩm
@@ -177,7 +175,6 @@ namespace FYP2025.Api.Features.Products
                 }
             }
             Console.WriteLine($"--- Kết thúc Debug ---");
-            // --- Kết thúc Debugging ---
 
             await _productRepository.AddAsync(product);
 
@@ -358,12 +355,7 @@ namespace FYP2025.Api.Features.Products
 
 
         // POST api/products/{productId}/variants
-        // API này hiện tại đang nhận [FromBody] CreateProductVariantDto
-        // Nếu bạn muốn API này cũng cho phép upload ảnh cho variant, bạn sẽ cần thay đổi nó thành [FromForm]
-        // và thêm IFormFile vào CreateProductVariantDto.
-        // Tuy nhiên, để nhất quán với cách CreateProduct đang làm, chúng ta sẽ giả định
-        // AddProductVariant sẽ được gọi riêng hoặc ảnh đã có (qua URL)
-        // hoặc bạn sẽ cần một API UpdateProductVariantImage riêng cho variant.
+
         [HttpPost("{productId}/variants")]
         public async Task<ActionResult<ProductVariantDto>> AddProductVariant(string productId, [FromBody] CreateProductVariantDto createVariantDto)
         {
@@ -373,23 +365,13 @@ namespace FYP2025.Api.Features.Products
                 return NotFound($"Product with ID {productId} not found.");
             }
 
-            // Nếu bạn muốn cho phép upload ảnh variant qua API này, bạn phải thay đổi [FromBody] thành [FromForm]
-            // và sửa CreateProductVariantDto để có IFormFile.
-            // Ví dụ đơn giản:
-            // if (createVariantDto.ImageFile == null || createVariantDto.ImageFile.Length == 0) { return BadRequest("Image required for variant."); }
-            // var uploadResult = await _photoService.UploadPhotoAsync(createVariantDto.ImageFile);
-            // newVariant.ImageUrl = uploadResult.SecureUrl.ToString();
-            // Nhưng hiện tại, API này chỉ nhận JSON, không có file.
+
 
             var newVariant = _mapper.Map<ProductVariant>(createVariantDto);
             newVariant.Id = Guid.NewGuid().ToString();
             newVariant.ProductId = productId; // Gán khóa ngoại
 
-            // LƯU Ý: Tại đây ImageUrl của newVariant sẽ là NULL/rỗng nếu không được gán thủ công từ file upload
-            // hoặc không được truyền trong DTO JSON và DB là NOT NULL.
-            // Nếu ImageUrl là NOT NULL trong DB, bạn cần đảm bảo nó có giá trị ở đây.
-            // Giải pháp: Sử dụng API UpdateProductVariantImage sau khi tạo variant,
-            // hoặc thay đổi API này để nhận [FromForm] và file.
+
 
 
             product.Variants.Add(newVariant); // Thêm vào collection của Product
@@ -416,15 +398,13 @@ namespace FYP2025.Api.Features.Products
                 return NotFound($"Product variant with ID {variantId} not found for product {productId}.");
             }
 
-            _mapper.Map(updateVariantDto, existingVariant); // Cập nhật thuộc tính của biến thể
-            existingVariant.Id = variantId; // Đảm bảo ID không đổi
-            existingVariant.ProductId = productId; // Đảm bảo khóa ngoại không đổi
+            _mapper.Map(updateVariantDto, existingVariant); 
+            existingVariant.Id = variantId; 
+            existingVariant.ProductId = productId; 
 
-            // LƯU Ý: ImageUrl của variant sẽ không được cập nhật qua API này nếu nó chỉ nhận [FromBody]
-            // và UpdateProductVariantDto không có IFormFile.
-            // Bạn cần sử dụng API UpdateProductVariantImage riêng để cập nhật ảnh.
 
-            await _productRepository.UpdateAsync(product); // Cập nhật Product để lưu thay đổi của Variant
+
+            await _productRepository.UpdateAsync(product); 
 
             return NoContent();
         }
@@ -464,9 +444,9 @@ namespace FYP2025.Api.Features.Products
                 }
             }
 
-            product.Variants.Remove(variantToRemove); // Xóa khỏi collection của Product
+            product.Variants.Remove(variantToRemove); 
 
-            await _productRepository.UpdateAsync(product); // Cập nhật Product để lưu thay đổi
+            await _productRepository.UpdateAsync(product); 
 
             return NoContent();
         }

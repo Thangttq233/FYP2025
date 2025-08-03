@@ -57,6 +57,28 @@ namespace FYP2025.Application.Mappers
                 .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName))
                 .ForMember(dest => dest.DateOfBirth, opt => opt.MapFrom(src => src.DateOfBirth))
                 .ForMember(dest => dest.Roles, opt => opt.Ignore()); // Roles sẽ được gán thủ công vì cần UserManager
+
+            // Mappings cho Cart
+            CreateMap<Cart, CartDto>()
+                .ForMember(dest => dest.TotalCartPrice, opt => opt.Ignore()); // Sẽ tính toán trong service
+            CreateMap<CartItem, CartItemDto>()
+                .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.ProductVariant.Product.Name))
+                .ForMember(dest => dest.ProductVariantColor, opt => opt.MapFrom(src => src.ProductVariant.Color))
+                .ForMember(dest => dest.ProductVariantSize, opt => opt.MapFrom(src => src.ProductVariant.Size))
+                .ForMember(dest => dest.ProductVariantPrice, opt => opt.MapFrom(src => src.ProductVariant.Price))
+                .ForMember(dest => dest.ProductVariantImageUrl, opt => opt.MapFrom(src => src.ProductVariant.ImageUrl));
+
+            // CreateMap<AddToCartRequestDto, CartItem>(); // Sẽ map thủ công trong service để lấy ProductVariantId, Quantity
+            // CreateMap<UpdateCartItemRequestDto, CartItem>(); // Sẽ map thủ công trong service để cập nhật Quantity
+
+            // Mappings cho Order
+            CreateMap<Order, OrderDto>()
+                .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.User.FullName)) 
+                .ForMember(dest => dest.CustomerEmail, opt => opt.MapFrom(src => src.User.Email)); 
+            CreateMap<OrderItem, OrderItemDto>();
+
+            // CreateMap<CreateOrderRequestDto, Order>(); // Sẽ map thủ công trong service và lấy từ Cart/CartItems
+            // CreateMap<UpdateOrderStatusRequestDto, Order>(); // Sẽ map thủ công trong service
         }
     }
 }

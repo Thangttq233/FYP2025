@@ -30,7 +30,7 @@ namespace FYP2025.Api.Features.Categories
 
         // GET api/categories/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<CategoryDto>> GetCategory(string id) // Thay đổi từ int sang string
+        public async Task<ActionResult<CategoryDto>> GetCategory(string id) 
         {
             var category = await _categoryRepository.GetByIdAsync(id);
 
@@ -48,7 +48,7 @@ namespace FYP2025.Api.Features.Categories
         public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CreateCategoryDto createCategoryDto)
         {
             var category = _mapper.Map<Category>(createCategoryDto);
-            category.Id = Guid.NewGuid().ToString(); // Tạo ID mới dạng GUID
+            category.Id = Guid.NewGuid().ToString(); 
             await _categoryRepository.AddAsync(category);
 
             var categoryDto = _mapper.Map<CategoryDto>(category);
@@ -65,7 +65,7 @@ namespace FYP2025.Api.Features.Categories
             }
 
             var category = _mapper.Map<Category>(updateCategoryDto);
-            category.Id = id; // Đảm bảo ID được cập nhật đúng
+            category.Id = id; 
 
             await _categoryRepository.UpdateAsync(category);
 
@@ -74,7 +74,7 @@ namespace FYP2025.Api.Features.Categories
 
         // DELETE api/categories/{id}
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCategory(string id) // Thay đổi từ int sang string
+        public async Task<IActionResult> DeleteCategory(string id) 
         {
             if (!await _categoryRepository.ExistsAsync(id))
             {

@@ -14,37 +14,83 @@ namespace FYP2025.Infrastructure.Data
         {
         }
 
+        // Các DbSet hiện có của bạn
         public DbSet<Category> Categories { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductVariant> ProductVariants { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<Cart> Carts { get; set; }
+        public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            
+            // QUAN TRỌNG: Gọi base.OnModelCreating trước để Identity tạo các bảng của nó
             base.OnModelCreating(modelBuilder);
 
+            // Cấu hình các mối quan hệ và ràng buộc cho Product và ProductVariant
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)
-                .WithMany() 
+                .WithMany()
                 .HasForeignKey(p => p.CategoryId)
-                .IsRequired(); 
+                .IsRequired();
 
             modelBuilder.Entity<ProductVariant>()
                 .HasOne(pv => pv.Product)
-                .WithMany(p => p.Variants) 
+                .WithMany(p => p.Variants)
                 .HasForeignKey(pv => pv.ProductId)
+                .IsRequired();
+
+            modelBuilder.Entity<Cart>()
+                .HasMany(c => c.Items)
+                .WithOne(ci => ci.Cart)
+                .HasForeignKey(ci => ci.CartId)
+                .IsRequired();
+
+            modelBuilder.Entity<Cart>()
+                .HasIndex(c => c.UserId)
+                .IsUnique();
+
+            modelBuilder.Entity<CartItem>()
+                .HasOne(ci => ci.ProductVariant)
+                .WithMany() 
+                .HasForeignKey(ci => ci.ProductVariantId)
                 .IsRequired(); 
+
+            modelBuilder.Entity<Order>()
+                .HasOne<ApplicationUser>() 
+                .WithMany() 
+                .HasForeignKey(o => o.UserId) 
+                .IsRequired(); 
+
+            modelBuilder.Entity<OrderItem>()
+                .HasOne(oi => oi.ProductVariant)
+                .WithMany() 
+                .HasForeignKey(oi => oi.ProductVariantId)
+                .IsRequired(false); 
+
+            modelBuilder.Entity<Order>()
+                .Property(o => o.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasOne(rt => rt.User)
+                .WithMany()
+                .HasForeignKey(rt => rt.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade); 
 
             foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
                 relationship.DeleteBehavior = DeleteBehavior.Restrict; // Hoặc .NoAction
             }
 
-            string adminRoleId = "a8204620-8025-4523-a18d-68e1c6b1a37c"; 
-            string customerRoleId = "c25c30f4-5f53-43a9-a9a7-8028120b6088"; 
-            string salerRoleId = "s9d4e5f6-7890-1234-a789-b876c543d210"; 
+            // Cấu hình Role hạt giống (Seeding Roles) sử dụng Enum và ID CỐ ĐỊNH (như đã có)
+            string adminRoleId = "a8204620-8025-4523-a18d-68e1c6b1a37c";
+            string customerRoleId = "c25c30f4-5f53-43a9-a9a7-8028120b6088";
+            string salerRoleId = "s9d4e5f6-7890-1234-a789-b876c543d210";
 
             modelBuilder.Entity<ApplicationRole>().HasData(
                 new ApplicationRole { Id = adminRoleId, Name = RolesEnum.Admin.ToString(), NormalizedName = RolesEnum.Admin.ToString().ToUpper() },

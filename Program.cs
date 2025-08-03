@@ -8,20 +8,22 @@ using FYP2025.Domain.Repositories;
 using FYP2025.Infrastructure.Data.Repositories;
 using FYP2025.Application.Mappers;
 using System.Reflection;
-using Microsoft.AspNetCore.Identity; // Cho Identity
-using Microsoft.AspNetCore.Authentication.JwtBearer; // Cho JWT
-using Microsoft.IdentityModel.Tokens; // Cho TokenValidationParameters
+using Microsoft.AspNetCore.Identity; 
+using Microsoft.AspNetCore.Authentication.JwtBearer; 
+using Microsoft.IdentityModel.Tokens; 
 using System.Text;
-using FYP2025.Application.Services.Auth; // Cho AuthService (đảm bảo namespace này đúng)
-using Npgsql; // <--- THÊM USING NÀY CHO NPGSQL
+using FYP2025.Application.Services.Auth; 
+using Npgsql;
+using FYP2025.Application.Services.CartService;
+using FYP2025.Application.Services.OrderService;
+using Microsoft.OpenApi.Models; 
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- GIẢI PHÁP CHO LỖI DATETIME.KIND=UNSPECIFIED ---
-// Đặt dòng này TRƯỚC AddDbContext
-// Nó cho phép Npgsql xử lý DateTime với Kind=Unspecified bằng cách coi chúng là Local time.
+//  LỖI DATETIME.KIND=UNSPECIFIED 
+
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-// --- KẾT THÚC GIẢI PHÁP DATETIME.KIND ---
+
 
 
 // Đăng ký DbContext với PostgreSQL
@@ -34,14 +36,20 @@ builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection(
 // Đăng ký PhotoService vào DI container
 builder.Services.AddScoped<IPhotoService, PhotoService>();
 
-// Đăng ký Repositories (CHỈ MỘT LẦN)
+// Đăng ký Repositories 
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
-// Đăng ký AuthService (CHỈ MỘT LẦN)
+builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+// Đăng ký AuthService 
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Add AutoMapper (CHỈ MỘT LẦN)
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+
+// Add AutoMapper 
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 builder.Services.AddControllers()
@@ -50,12 +58,11 @@ builder.Services.AddControllers()
 // Cấu hình Identity
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders(); // Cần thiết cho các tính năng như reset mật khẩu
+    .AddDefaultTokenProviders(); 
 
 
-// --- BẮT ĐẦU CẤU HÌNH JWT AUTHENTICATION ---
+// CẤU HÌNH JWT AUTHENTICATION 
 
-// Lấy Secret Key từ cấu hình (ví dụ: appsettings.json)
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
 var issuer = jwtSettings["Issuer"];
@@ -63,7 +70,6 @@ var audience = jwtSettings["Audience"];
 
 if (string.IsNullOrEmpty(secretKey) || string.IsNullOrEmpty(issuer) || string.IsNullOrEmpty(audience))
 {
-    // Đây là một kiểm tra an toàn, bạn nên có các giá trị này trong appsettings.json
     throw new InvalidOperationException("JwtSettings: Secret, Issuer, or Audience is not configured. Please check appsettings.json");
 }
 
@@ -76,22 +82,48 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true, // Xác thực nhà phát hành token
-        ValidateAudience = true, // Xác thực đối tượng token
-        ValidateLifetime = true, // Xác thực thời gian sống của token
-        ValidateIssuerSigningKey = true, // Xác thực khóa ký token
-        ValidIssuer = issuer, // Nhà phát hành hợp lệ
-        ValidAudience = audience, // Đối tượng hợp lệ
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)) // Khóa ký
+        ValidateIssuer = true, 
+        ValidateAudience = true, 
+        ValidateLifetime = true, 
+        ValidateIssuerSigningKey = true, 
+        ValidIssuer = issuer, 
+        ValidAudience = audience, 
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)) 
     };
 });
 
-builder.Services.AddAuthorization(); // <--- Đảm bảo dòng này có để kích hoạt phân quyền
+builder.Services.AddAuthorization(); 
 
-// --- KẾT THÚC CẤU HÌNH JWT AUTHENTICATION ---
+builder.Services.AddSwaggerGen(options =>
+{
+    // Cấu hình để thêm nút "Authorize" vào Swagger UI
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Vui lòng nhập 'Bearer ' theo sau là token",
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 
-// Các cấu hình khác
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -103,13 +135,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection(); // <--- Giữ lại dòng này ở đây, không trùng lặp
+app.UseHttpsRedirection(); 
 
-// --- THÊM MIDDLEWARE XÁC THỰC VÀ PHÂN QUYỀN VÀO PIPELINE ---
-app.UseAuthentication(); // <--- PHẢI ĐẶT TRƯỚC UseAuthorization
-app.UseAuthorization();  // <--- THÊM DÒNG NÀY VÀO ĐÂY
-// --- KẾT THÚC THÊM MIDDLEWARE ---
-
+app.UseAuthentication(); 
+app.UseAuthorization();  
 app.MapControllers();
-
 app.Run();
