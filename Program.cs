@@ -2,8 +2,6 @@
 using FYP2025.Domain.Services.Cloudinary;
 using FYP2025.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-
-// Thêm các using cần thiết cho các lớp từ các project khác
 using FYP2025.Domain.Repositories;
 using FYP2025.Infrastructure.Data.Repositories;
 using FYP2025.Application.Mappers;
@@ -16,7 +14,9 @@ using FYP2025.Application.Services.Auth;
 using Npgsql;
 using FYP2025.Application.Services.CartService;
 using FYP2025.Application.Services.OrderService;
-using Microsoft.OpenApi.Models; 
+using Microsoft.OpenApi.Models;
+using FYP2025.Application.Services.Vnpay;
+using FYP2025.Application.Services.OrderServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,12 +42,10 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-
-// Đăng ký AuthService 
 builder.Services.AddScoped<IAuthService, AuthService>();
-
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IVnpayService, VnpayService>();
 
 // Add AutoMapper 
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
@@ -58,8 +56,9 @@ builder.Services.AddControllers()
 // Cấu hình Identity
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders(); 
+    .AddDefaultTokenProviders();
 
+builder.Services.Configure<VnpaySettings>(builder.Configuration.GetSection("VnpaySettings"));
 
 // CẤU HÌNH JWT AUTHENTICATION 
 

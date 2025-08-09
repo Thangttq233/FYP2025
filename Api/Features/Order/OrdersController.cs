@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.Collections.Generic;
-using FYP2025.Application.Common; 
-
+using FYP2025.Application.Common;
+using FYP2025.Application.Services.Vnpay;
 namespace FYP2025.Api.Features.Order 
 {
     [ApiController]
@@ -15,10 +15,11 @@ namespace FYP2025.Api.Features.Order
     public class OrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;
-
-        public OrdersController(IOrderService orderService)
+        private readonly IVnpayService _vnpayService;
+        public OrdersController(IOrderService orderService, IVnpayService vnpayService) // <--- THÊM VÀO CONSTRUCTOR
         {
             _orderService = orderService;
+            _vnpayService = vnpayService;
         }
 
         // Lấy UserId từ JWT token
@@ -30,6 +31,13 @@ namespace FYP2025.Api.Features.Order
                 throw new UnauthorizedAccessException("User is not authenticated.");
             }
             return userId;
+        }
+
+        private string GetIpAddress()
+        {
+            if (Request.Headers.ContainsKey("X-Forwarded-For"))
+                return Request.Headers["X-Forwarded-For"];
+            return HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "::1";
         }
 
         // GET: api/orders/my-orders
@@ -119,6 +127,46 @@ namespace FYP2025.Api.Features.Order
                 return NoContent();
             }
             return NotFound($"Order with ID {request.OrderId} not found.");
+        }
+
+        // POST: api/orders/{orderId}/pay
+        [HttpPost("{orderId}/pay")]
+        public async Task<IActionResult> CreateVnpayPayment(string orderId)
+        {
+            try
+            {
+                var userId = GetUserId();
+                var paymentUrl = await _orderService.CreateVnpayPaymentUrl(userId, orderId); // <--- Gọi OrderService
+                return Ok(new { paymentUrl }); // Trả về URL thanh toán VNPAY
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+        }
+
+        // GET: api/payment/vnpay-return (API callback từ VNPAY)
+        // [AllowAnonymous] vì VNPAY gửi request, không phải người dùng đã đăng nhập
+        [HttpGet("/api/payment/vnpay-return")] // Sử dụng route tuyệt đối để tránh trùng route
+        [AllowAnonymous]
+        public async Task<IActionResult> VnpayReturn()
+        {
+            var vnpayData = HttpContext.Request.Query;
+            var isSuccess = await _orderService.ProcessVnpayReturn(vnpayData);
+
+            if (isSuccess)
+            {
+                return Ok("Thanh toán thành công. Đơn hàng của bạn đã được cập nhật.");
+            }
+            return BadRequest("Thanh toán thất bại. Vui lòng kiểm tra lại đơn hàng.");
         }
     }
 }

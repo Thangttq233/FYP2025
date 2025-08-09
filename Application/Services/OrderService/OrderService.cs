@@ -1,17 +1,19 @@
-﻿// FYP2025/Application/Services/Order/OrderService.cs
-using FYP2025.Application.DTOs;
+﻿using FYP2025.Application.DTOs;
 using FYP2025.Domain.Entities;
 using FYP2025.Domain.Repositories;
-using FYP2025.Infrastructure.Data; // Cho ApplicationUser (khi lấy CustomerName/Email)
+using FYP2025.Infrastructure.Data; 
 using AutoMapper;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using System;
-using Microsoft.AspNetCore.Identity; // Cho UserManager để lấy thông tin user
-using Microsoft.EntityFrameworkCore; // Cần cho UpdateAsync của Product
+using Microsoft.AspNetCore.Identity; 
+using Microsoft.EntityFrameworkCore;
+using FYP2025.Application.Services.Vnpay; 
+using Microsoft.AspNetCore.Http;
+using FYP2025.Application.Services.OrderService; 
 
-namespace FYP2025.Application.Services.OrderService
+namespace FYP2025.Application.Services.OrderServices 
 {
     public class OrderService : IOrderService
     {
@@ -20,14 +22,16 @@ namespace FYP2025.Application.Services.OrderService
         private readonly IProductRepository _productRepository;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMapper _mapper;
-        private readonly ApplicationDbContext _dbContext; // Cần thiết để cập nhật ProductVariant
+        private readonly ApplicationDbContext _dbContext; 
+        private readonly IVnpayService _vnpayService;
 
         public OrderService(IOrderRepository orderRepository,
                             ICartRepository cartRepository,
                             IProductRepository productRepository,
                             UserManager<ApplicationUser> userManager,
                             IMapper mapper,
-                            ApplicationDbContext dbContext)
+                            ApplicationDbContext dbContext,
+                            IVnpayService vnpayService)
         {
             _orderRepository = orderRepository;
             _cartRepository = cartRepository;
@@ -35,6 +39,7 @@ namespace FYP2025.Application.Services.OrderService
             _userManager = userManager;
             _mapper = mapper;
             _dbContext = dbContext;
+            _vnpayService = vnpayService;
         }
 
         public async Task<OrderDto> CreateOrderFromCartAsync(string userId, CreateOrderRequestDto request)
@@ -51,7 +56,7 @@ namespace FYP2025.Application.Services.OrderService
                 throw new ArgumentException("Người dùng không hợp lệ.");
             }
 
-            // Kiểm tra tồn kho và tính tổng giá
+            // CHỈ KIỂM TRA TỒN KHO, KHÔNG GIẢM TỒN KHO Ở ĐÂY
             var orderItems = new List<OrderItem>();
             decimal totalOrderPrice = 0;
 
@@ -67,18 +72,13 @@ namespace FYP2025.Application.Services.OrderService
                     throw new InvalidOperationException($"Không đủ tồn kho cho biến thể '{productVariant.Product.Name} - {productVariant.Color} - {productVariant.Size}'. Chỉ còn {productVariant.StockQuantity} sản phẩm.");
                 }
 
-                // Giảm số lượng tồn kho và lưu
-                productVariant.StockQuantity -= cartItem.Quantity;
-                _dbContext.ProductVariants.Update(productVariant); // Cập nhật trực tiếp ProductVariant
-                // await _productRepository.UpdateAsync(productVariant.Product); // Không cần dòng này nữa vì đã cập nhật trực tiếp
-
-                // Tạo OrderItem với snapshot data
+                // TẠO OrderItem với snapshot data (để lưu giá tại thời điểm đặt hàng)
                 orderItems.Add(new OrderItem
                 {
                     Id = Guid.NewGuid().ToString(),
                     ProductVariantId = cartItem.ProductVariantId,
                     Quantity = cartItem.Quantity,
-                    UnitPrice = productVariant.Price, // Giá tại thời điểm đặt hàng
+                    UnitPrice = productVariant.Price,
                     ProductSnapshotName = productVariant.Product.Name,
                     ProductVariantSnapshotColor = productVariant.Color,
                     ProductVariantSnapshotSize = productVariant.Size,
@@ -88,17 +88,17 @@ namespace FYP2025.Application.Services.OrderService
                 totalOrderPrice += cartItem.Quantity * productVariant.Price;
             }
 
-            // Tạo Order chính
+            // Tạo Order chính với trạng thái Pending
             var order = new Order
             {
                 Id = Guid.NewGuid().ToString(),
                 UserId = userId,
                 OrderDate = DateTime.UtcNow,
-                Status = OrderStatus.Pending, // Trạng thái mặc định khi tạo đơn hàng
+                Status = OrderStatus.Pending, // Trạng thái ban đầu luôn là Pending
                 TotalPrice = totalOrderPrice,
                 ShippingAddress = request.ShippingAddress,
                 PhoneNumber = request.PhoneNumber,
-                CustomerName = user.FullName, // Lấy từ thông tin user
+                CustomerName = user.FullName,
                 Items = orderItems
             };
 
@@ -107,7 +107,6 @@ namespace FYP2025.Application.Services.OrderService
             // Xóa giỏ hàng sau khi tạo đơn hàng
             await _cartRepository.ClearCartAsync(cart.Id);
 
-            // Lấy lại order với thông tin User đầy đủ để mapping DTO
             var createdOrder = await _orderRepository.GetOrderDetailsAsync(order.Id);
             var orderDto = _mapper.Map<OrderDto>(createdOrder);
             return orderDto;
@@ -116,10 +115,6 @@ namespace FYP2025.Application.Services.OrderService
         public async Task<IEnumerable<OrderDto>> GetUserOrdersAsync(string userId)
         {
             var orders = await _orderRepository.GetUserOrdersAsync(userId);
-            // Để map CustomerName và CustomerEmail, cần Include User trong Repository GetUserOrdersAsync
-            // Hoặc lặp qua từng order và lấy user từ UserManager nếu cần
-
-            // Nếu OrderRepository.GetUserOrdersAsync đã include User, chỉ cần map
             var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders);
             return orderDtos;
         }
@@ -141,6 +136,65 @@ namespace FYP2025.Application.Services.OrderService
             order.Status = request.NewStatus;
             await _orderRepository.UpdateAsync(order);
             return true;
+        }
+
+        // SỬA ĐỔI PHƯƠNG THỨC XỬ LÝ PHẢN HỒI TỪ VNPAY
+        public async Task<bool> ProcessVnpayReturn(IQueryCollection vnpayData)
+        {
+            var secureHashIsValid = await _vnpayService.ProcessVnpayReturn(vnpayData);
+
+            if (secureHashIsValid)
+            {
+                var vnp_ResponseCode = vnpayData["vnp_ResponseCode"].ToString();
+                var vnp_TransactionStatus = vnpayData["vnp_TransactionStatus"].ToString();
+                var orderId = vnpayData["vnp_TxnRef"].ToString();
+
+                if (vnp_ResponseCode == "00" && vnp_TransactionStatus == "00")
+                {
+                    // Thanh toán thành công -> LÀ NƠI CHÚNG TA GIẢM TỒN KHO
+                    var order = await _orderRepository.GetOrderDetailsAsync(orderId); // Lấy order với items
+                    if (order != null && order.Status == OrderStatus.Pending) // Chỉ xử lý khi đơn hàng đang Pending
+                    {
+                        // Lặp qua từng item trong đơn hàng và giảm tồn kho
+                        foreach (var orderItem in order.Items)
+                        {
+                            var productVariant = await _productRepository.GetProductVariantByIdAsync(orderItem.ProductVariantId);
+                            if (productVariant != null)
+                            {
+                                productVariant.StockQuantity -= orderItem.Quantity;
+                                _dbContext.ProductVariants.Update(productVariant);
+                            }
+                        }
+
+                        // Cập nhật trạng thái đơn hàng
+                        order.Status = OrderStatus.Processing;
+                        await _orderRepository.UpdateAsync(order);
+                        await _dbContext.SaveChangesAsync(); // Lưu tất cả thay đổi (cả tồn kho và trạng thái)
+                        return true;
+                    }
+                }
+            }
+
+            // Nếu chữ ký không hợp lệ, hoặc thanh toán thất bại
+            return false;
+        }
+
+        public async Task<string> CreateVnpayPaymentUrl(string userId, string orderId)
+        {
+            var order = await _orderRepository.GetByIdAsync(orderId);
+            if (order == null || order.UserId != userId)
+            {
+                throw new ArgumentException("Đơn hàng không hợp lệ.");
+            }
+
+            if (order.Status != OrderStatus.Pending)
+            {
+                throw new InvalidOperationException("Chỉ có thể thanh toán các đơn hàng đang chờ xử lý.");
+            }
+
+            var paymentUrl = await _vnpayService.CreatePaymentUrl(order);
+
+            return paymentUrl;
         }
     }
 }
