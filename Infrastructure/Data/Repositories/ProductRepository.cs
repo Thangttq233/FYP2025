@@ -22,7 +22,6 @@ namespace FYP2025.Infrastructure.Data.Repositories
         {
             return await _context.Products
                                  .Include(p => p.Variants)
-                                     .ThenInclude(pv => pv.Product)
                                  .FirstOrDefaultAsync(p => p.Id == id);
         }
 
@@ -31,7 +30,6 @@ namespace FYP2025.Infrastructure.Data.Repositories
         {
             return await _context.Products
                                  .Include(p => p.Variants)
-                                     .ThenInclude(pv => pv.Product)
                                  .ToListAsync();
         }
 
@@ -41,7 +39,6 @@ namespace FYP2025.Infrastructure.Data.Repositories
             return await _context.Products
                                  .Where(p => p.CategoryId == categoryId)
                                  .Include(p => p.Variants)
-                                     .ThenInclude(pv => pv.Product)
                                  .ToListAsync();
         }
 

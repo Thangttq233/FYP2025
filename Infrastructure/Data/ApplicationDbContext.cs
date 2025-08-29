@@ -33,7 +33,7 @@ namespace FYP2025.Infrastructure.Data
             // Cấu hình các mối quan hệ và ràng buộc cho Product và ProductVariant
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)
-                .WithMany()
+                .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .IsRequired();
 
@@ -55,21 +55,24 @@ namespace FYP2025.Infrastructure.Data
 
             modelBuilder.Entity<CartItem>()
                 .HasOne(ci => ci.ProductVariant)
-                .WithMany() 
+                .WithMany()
                 .HasForeignKey(ci => ci.ProductVariantId)
-                .IsRequired(); 
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict); // Ngăn chặn cascade delete
 
             modelBuilder.Entity<Order>()
-                .HasOne<ApplicationUser>() 
-                .WithMany() 
-                .HasForeignKey(o => o.UserId) 
-                .IsRequired(); 
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(o => o.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<OrderItem>()
                 .HasOne(oi => oi.ProductVariant)
-                .WithMany() 
+                .WithMany()
                 .HasForeignKey(oi => oi.ProductVariantId)
-                .IsRequired(false); 
+                .IsRequired() // Sửa: OrderItem phải có ProductVariant
+                .OnDelete(DeleteBehavior.Restrict); // Ngăn chặn cascade delete
 
             modelBuilder.Entity<Order>()
                 .Property(o => o.Status)
@@ -80,12 +83,7 @@ namespace FYP2025.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(rt => rt.UserId)
                 .IsRequired()
-                .OnDelete(DeleteBehavior.Cascade); 
-
-            foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
-            {
-                relationship.DeleteBehavior = DeleteBehavior.Restrict; // Hoặc .NoAction
-            }
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Cấu hình Role hạt giống (Seeding Roles) sử dụng Enum và ID CỐ ĐỊNH (như đã có)
             string adminRoleId = "a8204620-8025-4523-a18d-68e1c6b1a37c";
