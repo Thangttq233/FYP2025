@@ -61,7 +61,7 @@ namespace FYP2025.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Restrict); // Ngăn chặn cascade delete
 
             modelBuilder.Entity<Order>()
-                .HasOne<ApplicationUser>()
+                .HasOne(o => o.User) // Specify the navigation property
                 .WithMany()
                 .HasForeignKey(o => o.UserId)
                 .IsRequired()
