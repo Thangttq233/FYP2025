@@ -16,19 +16,20 @@ namespace FYP2025.Infrastructure.Data.Repositories
         {
         }
 
-        // GHI ĐÈ phương thức GetByIdAsync từ GenericRepository để bao gồm Variants
-        // Phương thức này đã có trong GenericRepository, nên chỉ cần override
+        // GHI ĐÈ phương thức GetByIdAsync từ GenericRepository để bao gồm Variants và Category
         public override async Task<Product> GetByIdAsync(string id)
         {
             return await _context.Products
+                                 .Include(p => p.Category) // Thêm dòng này
                                  .Include(p => p.Variants)
                                  .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        // GHI ĐÈ phương thức GetAllAsync từ GenericRepository để bao gồm Variants
+        // GHI ĐÈ phương thức GetAllAsync từ GenericRepository để bao gồm Variants và Category
         public override async Task<IEnumerable<Product>> GetAllAsync()
         {
             return await _context.Products
+                                 .Include(p => p.Category) // Thêm dòng này
                                  .Include(p => p.Variants)
                                  .ToListAsync();
         }
@@ -38,6 +39,7 @@ namespace FYP2025.Infrastructure.Data.Repositories
         {
             return await _context.Products
                                  .Where(p => p.CategoryId == categoryId)
+                                 .Include(p => p.Category) // Thêm dòng này
                                  .Include(p => p.Variants)
                                  .ToListAsync();
         }

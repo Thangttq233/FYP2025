@@ -108,7 +108,6 @@ namespace FYP2025.Api.Features.Products
                 return BadRequest($"Danh mục với ID {createProductDto.CategoryId} không tồn tại.");
             }
 
-            // --- Kiểm tra và upload ảnh cho SẢN PHẨM CHÍNH ---
             if (createProductDto.ImageFile == null || createProductDto.ImageFile.Length == 0)
             {
                 return BadRequest("Cần có file ảnh cho sản phẩm chính.");
@@ -121,50 +120,40 @@ namespace FYP2025.Api.Features.Products
                 return StatusCode(500, $"Tải ảnh sản phẩm chính lên thất bại: {productUploadResult?.Error?.Message ?? "Không nhận được URL ảnh."}");
             }
 
-            // --- Kiểm tra Variants ---
             if (createProductDto.Variants == null || !createProductDto.Variants.Any())
             {
                 return BadRequest("Cần ít nhất một biến thể sản phẩm.");
             }
 
-            // --- Ánh xạ CreateProductDto sang Product entity ---
-            // AutoMapper sẽ map các thuộc tính cơ bản của Product (Name, Description, CategoryId)
             var product = _mapper.Map<Product>(createProductDto);
             product.Id = Guid.NewGuid().ToString();
-            product.ImageUrl = productUploadResult.SecureUrl.ToString(); // Gán URL ảnh của SẢN PHẨM CHÍNH
+            product.ImageUrl = productUploadResult.SecureUrl.ToString(); 
 
-            // --- Xử lý các Variants và ảnh của chúng ---
-            // Tạo một danh sách Variants mới để thêm vào Product sau khi xử lý ảnh và ID
+
             List<ProductVariant> finalVariants = new List<ProductVariant>();
 
-            foreach (var variantDto in createProductDto.Variants) // Lặp qua DTO gốc để lấy ImageFile
+            foreach (var variantDto in createProductDto.Variants) 
             {
-                // Kiểm tra file ảnh cho từng variant
                 if (variantDto.ImageFile == null || variantDto.ImageFile.Length == 0)
                 {
                     return BadRequest($"Biến thể '{variantDto.Color} - {variantDto.Size}' yêu cầu file ảnh.");
                 }
-
-                // Upload ảnh của từng variant
                 var variantUploadResult = await _photoService.UploadPhotoAsync(variantDto.ImageFile);
                 if (variantUploadResult.Error != null || variantUploadResult.SecureUrl == null)
                 {
                     Console.WriteLine($"Tải ảnh lên Cloudinary thất bại cho biến thể '{variantDto.Color} - {variantDto.Size}': {variantUploadResult?.Error?.Message ?? "URL an toàn là null/rỗng"}");
                     return StatusCode(500, $"Tải ảnh lên thất bại cho biến thể '{variantDto.Color} - {variantDto.Size}': {variantUploadResult?.Error?.Message ?? "Không nhận được URL ảnh."}");
                 }
-
-                // Ánh xạ CreateProductVariantDto sang ProductVariant entity
                 var variant = _mapper.Map<ProductVariant>(variantDto);
-                variant.Id = Guid.NewGuid().ToString(); // Tạo ID cho variant
-                variant.ProductId = product.Id; // Gán khóa ngoại
-                variant.ImageUrl = variantUploadResult.SecureUrl.ToString(); // Gán URL ảnh đã upload cho variant
+                variant.Id = Guid.NewGuid().ToString(); 
+                variant.ProductId = product.Id; 
+                variant.ImageUrl = variantUploadResult.SecureUrl.ToString(); 
 
                 finalVariants.Add(variant); 
             }
 
-            product.Variants = finalVariants; // Gán danh sách variants đã hoàn chỉnh vào sản phẩm
+            product.Variants = finalVariants; 
 
-            // --- Debugging: Kiểm tra giá trị cuối cùng trước khi lưu ---
             Console.WriteLine($"Product.ImageUrl TRƯỚC khi AddAsync: '{product.ImageUrl}'");
             Console.WriteLine($"Số lượng Variants TRƯỚC khi AddAsync: {product.Variants?.Count ?? 0}");
             if (product.Variants != null)
@@ -178,7 +167,6 @@ namespace FYP2025.Api.Features.Products
 
             await _productRepository.AddAsync(product);
 
-            // Lấy lại sản phẩm từ DB để đảm bảo tất cả các quan hệ (Category, Variants) được tải đúng cách
             var createdProduct = await _productRepository.GetByIdAsync(product.Id);
             if (createdProduct == null)
             {
@@ -189,7 +177,6 @@ namespace FYP2025.Api.Features.Products
             return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, productDto);
         }
 
-        // PUT api/products/{id} - Chỉ cập nhật thông tin chính của sản phẩm (không bao gồm Variants)
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProduct(string id, [FromBody] UpdateProductDto updateProductDto)
         {
@@ -204,13 +191,8 @@ namespace FYP2025.Api.Features.Products
                 return BadRequest($"Category with ID {updateProductDto.CategoryId} does not exist.");
             }
 
-            // Map các thuộc tính chính của Product từ DTO
             _mapper.Map(updateProductDto, productToUpdate);
-            productToUpdate.Id = id; // Đảm bảo ID không thay đổi
-
-            // LƯU Ý: Phần cập nhật Variants và ImageUrl của Product chính sẽ KHÔNG được xử lý tự động ở đây.
-            // Bạn cần các endpoint riêng cho việc này hoặc logic phức tạp hơn.
-
+            productToUpdate.Id = id; 
             await _productRepository.UpdateAsync(productToUpdate);
             return NoContent();
         }
@@ -318,10 +300,7 @@ namespace FYP2025.Api.Features.Products
             return NoContent();
         }
 
-        // ----------------------------------------------------
         // CÁC API RIÊNG ĐỂ QUẢN LÝ BIẾN THỂ (PRODUCT VARIANT)
-        // ----------------------------------------------------
-
         // GET api/products/{productId}/variants
         [HttpGet("{productId}/variants")]
         public async Task<ActionResult<IEnumerable<ProductVariantDto>>> GetProductVariants(string productId)
