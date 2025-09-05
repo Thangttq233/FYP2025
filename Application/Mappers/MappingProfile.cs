@@ -21,9 +21,9 @@ namespace FYP2025.Application.Mappers
 
             // CreateProductVariantDto => ProductVariant
             CreateMap<CreateProductVariantDto, ProductVariant>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore()) // ID sẽ được tạo tự động
-                .ForMember(dest => dest.ProductId, opt => opt.Ignore()) // ProductId được gán trong controller
-                .ForMember(dest => dest.ImageUrl, opt => opt.Ignore()); // <--- ImageUrl sẽ được gán thủ công từ IFormFile
+                .ForMember(dest => dest.Id, opt => opt.Ignore()) 
+                .ForMember(dest => dest.ProductId, opt => opt.Ignore()) 
+                .ForMember(dest => dest.ImageUrl, opt => opt.Ignore()); 
 
             // UpdateProductVariantDto => ProductVariant
             CreateMap<UpdateProductVariantDto, ProductVariant>()

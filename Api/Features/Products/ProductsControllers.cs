@@ -6,10 +6,10 @@ using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http; 
+using Microsoft.AspNetCore.Http;
 using System.IO;
 using System;
-using System.Linq; 
+using System.Linq;
 
 namespace FYP2025.Api.Features.Products
 {
@@ -46,7 +46,7 @@ namespace FYP2025.Api.Features.Products
         [HttpGet("{id}")]
         public async Task<ActionResult<ProductDto>> GetProduct(string id)
         {
-            var product = await _productRepository.GetByIdAsync(id);
+            var product = await _productRepository.GetByIdAsync(id.Trim());
 
             if (product == null)
             {
@@ -61,12 +61,13 @@ namespace FYP2025.Api.Features.Products
         [HttpGet("byCategory/{categoryId}")]
         public async Task<ActionResult<IEnumerable<ProductDto>>> GetProductsByCategoryId(string categoryId)
         {
-            if (!await _categoryRepository.ExistsAsync(categoryId))
+            var trimmedCategoryId = categoryId.Trim();
+            if (!await _categoryRepository.ExistsAsync(trimmedCategoryId))
             {
-                return NotFound($"Category with ID {categoryId} not found.");
+                return NotFound($"Category with ID {trimmedCategoryId} not found.");
             }
 
-            var products = await _productRepository.GetProductsByCategoryIdAsync(categoryId);
+            var products = await _productRepository.GetProductsByCategoryIdAsync(trimmedCategoryId);
             var productDtos = _mapper.Map<IEnumerable<ProductDto>>(products);
             return Ok(productDtos);
         }
@@ -127,12 +128,12 @@ namespace FYP2025.Api.Features.Products
 
             var product = _mapper.Map<Product>(createProductDto);
             product.Id = Guid.NewGuid().ToString();
-            product.ImageUrl = productUploadResult.SecureUrl.ToString(); 
+            product.ImageUrl = productUploadResult.SecureUrl.ToString();
 
 
             List<ProductVariant> finalVariants = new List<ProductVariant>();
 
-            foreach (var variantDto in createProductDto.Variants) 
+            foreach (var variantDto in createProductDto.Variants)
             {
                 if (variantDto.ImageFile == null || variantDto.ImageFile.Length == 0)
                 {
@@ -145,14 +146,14 @@ namespace FYP2025.Api.Features.Products
                     return StatusCode(500, $"Tải ảnh lên thất bại cho biến thể '{variantDto.Color} - {variantDto.Size}': {variantUploadResult?.Error?.Message ?? "Không nhận được URL ảnh."}");
                 }
                 var variant = _mapper.Map<ProductVariant>(variantDto);
-                variant.Id = Guid.NewGuid().ToString(); 
-                variant.ProductId = product.Id; 
-                variant.ImageUrl = variantUploadResult.SecureUrl.ToString(); 
+                variant.Id = Guid.NewGuid().ToString();
+                variant.ProductId = product.Id;
+                variant.ImageUrl = variantUploadResult.SecureUrl.ToString();
 
-                finalVariants.Add(variant); 
+                finalVariants.Add(variant);
             }
 
-            product.Variants = finalVariants; 
+            product.Variants = finalVariants;
 
             Console.WriteLine($"Product.ImageUrl TRƯỚC khi AddAsync: '{product.ImageUrl}'");
             Console.WriteLine($"Số lượng Variants TRƯỚC khi AddAsync: {product.Variants?.Count ?? 0}");
@@ -178,9 +179,10 @@ namespace FYP2025.Api.Features.Products
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateProduct(string id, [FromBody] UpdateProductDto updateProductDto)
+        public async Task<ActionResult<ProductDto>> UpdateProduct(string id, [FromForm] UpdateProductDto updateProductDto)
         {
-            var productToUpdate = await _productRepository.GetByIdAsync(id);
+            var trimmedId = id.Trim();
+            var productToUpdate = await _productRepository.GetByIdAsync(trimmedId);
             if (productToUpdate == null)
             {
                 return NotFound();
@@ -191,17 +193,47 @@ namespace FYP2025.Api.Features.Products
                 return BadRequest($"Category with ID {updateProductDto.CategoryId} does not exist.");
             }
 
+            // Handle image upload
+            if (updateProductDto.ImageFile != null && updateProductDto.ImageFile.Length > 0)
+            {
+                // Delete old image if it exists
+                if (!string.IsNullOrEmpty(productToUpdate.ImageUrl))
+                {
+                    try
+                    {
+                        var uri = new Uri(productToUpdate.ImageUrl);
+                        var publicId = Path.GetFileNameWithoutExtension(uri.LocalPath);
+                        await _photoService.DeletePhotoAsync(publicId);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log the error but don't block the update
+                        Console.WriteLine($"Error deleting old product image: {ex.Message}");
+                    }
+                }
+
+                // Upload new image
+                var uploadResult = await _photoService.UploadPhotoAsync(updateProductDto.ImageFile);
+                if (uploadResult.Error != null)
+                {
+                    return StatusCode(500, $"Failed to upload new image: {uploadResult.Error.Message}");
+                }
+                productToUpdate.ImageUrl = uploadResult.SecureUrl.ToString();
+            }
+
             _mapper.Map(updateProductDto, productToUpdate);
-            productToUpdate.Id = id; 
+            productToUpdate.Id = trimmedId; // Ensure Id is not changed by mapper
             await _productRepository.UpdateAsync(productToUpdate);
-            return NoContent();
+
+            var productDto = _mapper.Map<ProductDto>(productToUpdate);
+            return Ok(productDto);
         }
 
         // PUT api/products/{id}/image (API riêng để cập nhật ảnh sản phẩm chính)
         [HttpPut("{id}/image")]
         public async Task<IActionResult> UpdateProductImage(string id, IFormFile imageFile)
         {
-            var product = await _productRepository.GetByIdAsync(id);
+            var product = await _productRepository.GetByIdAsync(id.Trim());
             if (product == null)
             {
                 return NotFound();
@@ -246,7 +278,8 @@ namespace FYP2025.Api.Features.Products
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(string id)
         {
-            var product = await _productRepository.GetByIdAsync(id); // Đảm bảo nó include Variants
+            var trimmedId = id.Trim();
+            var product = await _productRepository.GetByIdAsync(trimmedId); // Đảm bảo nó include Variants
             if (product == null)
             {
                 return NotFound();
@@ -296,7 +329,7 @@ namespace FYP2025.Api.Features.Products
                 }
             }
 
-            await _productRepository.DeleteAsync(id);
+            await _productRepository.DeleteAsync(trimmedId);
             return NoContent();
         }
 
@@ -305,7 +338,7 @@ namespace FYP2025.Api.Features.Products
         [HttpGet("{productId}/variants")]
         public async Task<ActionResult<IEnumerable<ProductVariantDto>>> GetProductVariants(string productId)
         {
-            var product = await _productRepository.GetByIdAsync(productId);
+            var product = await _productRepository.GetByIdAsync(productId.Trim());
             if (product == null)
             {
                 return NotFound($"Product with ID {productId} not found.");
@@ -318,12 +351,12 @@ namespace FYP2025.Api.Features.Products
         [HttpGet("{productId}/variants/{variantId}")]
         public async Task<ActionResult<ProductVariantDto>> GetProductVariant(string productId, string variantId)
         {
-            var product = await _productRepository.GetByIdAsync(productId);
+            var product = await _productRepository.GetByIdAsync(productId.Trim());
             if (product == null)
             {
                 return NotFound($"Product with ID {productId} not found.");
             }
-            var variant = product.Variants.FirstOrDefault(v => v.Id == variantId);
+            var variant = product.Variants.FirstOrDefault(v => v.Id == variantId.Trim());
             if (variant == null)
             {
                 return NotFound($"Product variant with ID {variantId} not found for product {productId}.");
@@ -338,17 +371,18 @@ namespace FYP2025.Api.Features.Products
         [HttpPost("{productId}/variants")]
         public async Task<ActionResult<ProductVariantDto>> AddProductVariant(string productId, [FromBody] CreateProductVariantDto createVariantDto)
         {
-            var product = await _productRepository.GetByIdAsync(productId);
+            var trimmedProductId = productId.Trim();
+            var product = await _productRepository.GetByIdAsync(trimmedProductId);
             if (product == null)
             {
-                return NotFound($"Product with ID {productId} not found.");
+                return NotFound($"Product with ID {trimmedProductId} not found.");
             }
 
 
 
             var newVariant = _mapper.Map<ProductVariant>(createVariantDto);
             newVariant.Id = Guid.NewGuid().ToString();
-            newVariant.ProductId = productId; // Gán khóa ngoại
+            newVariant.ProductId = trimmedProductId; // Gán khóa ngoại
 
 
 
@@ -358,32 +392,60 @@ namespace FYP2025.Api.Features.Products
             await _productRepository.UpdateAsync(product); // Cập nhật Product để lưu Variant mới
 
             var variantDto = _mapper.Map<ProductVariantDto>(newVariant);
-            return CreatedAtAction(nameof(GetProductVariant), new { productId = productId, variantId = newVariant.Id }, variantDto);
+            return CreatedAtAction(nameof(GetProductVariant), new { productId = trimmedProductId, variantId = newVariant.Id }, variantDto);
         }
 
         // PUT api/products/{productId}/variants/{variantId}
         [HttpPut("{productId}/variants/{variantId}")]
-        public async Task<IActionResult> UpdateProductVariant(string productId, string variantId, [FromBody] UpdateProductVariantDto updateVariantDto)
+        public async Task<IActionResult> UpdateProductVariant(string productId, string variantId, [FromForm] UpdateProductVariantDto updateVariantDto)
         {
-            var product = await _productRepository.GetByIdAsync(productId);
+            var trimmedProductId = productId.Trim();
+            var trimmedVariantId = variantId.Trim();
+            var product = await _productRepository.GetByIdAsync(trimmedProductId);
             if (product == null)
             {
-                return NotFound($"Product with ID {productId} not found.");
+                return NotFound($"Product with ID {trimmedProductId} not found.");
             }
 
-            var existingVariant = product.Variants.FirstOrDefault(v => v.Id == variantId);
+            var existingVariant = product.Variants.FirstOrDefault(v => v.Id == trimmedVariantId);
             if (existingVariant == null)
             {
-                return NotFound($"Product variant with ID {variantId} not found for product {productId}.");
+                return NotFound($"Product variant with ID {trimmedVariantId} not found for product {trimmedProductId}.");
             }
 
-            _mapper.Map(updateVariantDto, existingVariant); 
-            existingVariant.Id = variantId; 
-            existingVariant.ProductId = productId; 
+            // Handle image upload for variant
+            if (updateVariantDto.ImageFile != null && updateVariantDto.ImageFile.Length > 0)
+            {
+                // Delete old image if it exists
+                if (!string.IsNullOrEmpty(existingVariant.ImageUrl))
+                {
+                    try
+                    {
+                        var uri = new Uri(existingVariant.ImageUrl);
+                        var publicId = Path.GetFileNameWithoutExtension(uri.LocalPath);
+                        await _photoService.DeletePhotoAsync(publicId);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log the error but don't block the update
+                        Console.WriteLine($"Error deleting old variant image: {ex.Message}");
+                    }
+                }
 
+                // Upload new image
+                var uploadResult = await _photoService.UploadPhotoAsync(updateVariantDto.ImageFile);
+                if (uploadResult.Error != null)
+                {
+                    return StatusCode(500, $"Failed to upload new variant image: {uploadResult.Error.Message}");
+                }
+                existingVariant.ImageUrl = uploadResult.SecureUrl.ToString();
+            }
 
+            _mapper.Map(updateVariantDto, existingVariant);
+            existingVariant.Id = trimmedVariantId; // Ensure Id is not changed
+            existingVariant.ProductId = trimmedProductId; // Ensure ProductId is not changed
 
-            await _productRepository.UpdateAsync(product); 
+            await _productRepository.UpdateAsync(product);
 
             return NoContent();
         }
@@ -392,16 +454,17 @@ namespace FYP2025.Api.Features.Products
         [HttpDelete("{productId}/variants/{variantId}")]
         public async Task<IActionResult> DeleteProductVariant(string productId, string variantId)
         {
-            var product = await _productRepository.GetByIdAsync(productId);
+            var trimmedProductId = productId.Trim();
+            var product = await _productRepository.GetByIdAsync(trimmedProductId);
             if (product == null)
             {
-                return NotFound($"Product with ID {productId} not found.");
+                return NotFound($"Product with ID {trimmedProductId} not found.");
             }
 
-            var variantToRemove = product.Variants.FirstOrDefault(v => v.Id == variantId);
+            var variantToRemove = product.Variants.FirstOrDefault(v => v.Id == variantId.Trim());
             if (variantToRemove == null)
             {
-                return NotFound($"Product variant with ID {variantId} not found for product {productId}.");
+                return NotFound($"Product variant with ID {variantId} not found for product {trimmedProductId}.");
             }
 
             // Xóa ảnh của variant trước khi xóa variant khỏi DB
@@ -423,9 +486,9 @@ namespace FYP2025.Api.Features.Products
                 }
             }
 
-            product.Variants.Remove(variantToRemove); 
+            product.Variants.Remove(variantToRemove);
 
-            await _productRepository.UpdateAsync(product); 
+            await _productRepository.UpdateAsync(product);
 
             return NoContent();
         }
