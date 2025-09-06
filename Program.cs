@@ -6,11 +6,11 @@ using FYP2025.Domain.Repositories;
 using FYP2025.Infrastructure.Data.Repositories;
 using FYP2025.Application.Mappers;
 using System.Reflection;
-using Microsoft.AspNetCore.Identity; 
-using Microsoft.AspNetCore.Authentication.JwtBearer; 
-using Microsoft.IdentityModel.Tokens; 
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using FYP2025.Application.Services.Auth; 
+using FYP2025.Application.Services.Auth;
 using Npgsql;
 using FYP2025.Application.Services.CartService;
 using FYP2025.Application.Services.OrderService;
@@ -81,17 +81,17 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true, 
-        ValidateAudience = true, 
-        ValidateLifetime = true, 
-        ValidateIssuerSigningKey = true, 
-        ValidIssuer = issuer, 
-        ValidAudience = audience, 
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)) 
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = issuer,
+        ValidAudience = audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
 });
 
-builder.Services.AddAuthorization(); 
+builder.Services.AddAuthorization();
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -133,10 +133,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.Urls.Add("http://localhost:88");
+// Cấu hình CORS
+app.UseCors(builder => builder
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader());
 
-app.UseHttpsRedirection(); 
-
-app.UseAuthentication(); 
-app.UseAuthorization();  
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.Run();
