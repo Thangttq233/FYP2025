@@ -12,5 +12,6 @@ namespace FYP2025.Application.Services.OrderService
         Task<bool> UpdateOrderStatusAsync(string orderId, UpdateOrderStatusRequestDto request);
         Task<string> CreateVnpayPaymentUrl(string userId, string orderId);
         Task<bool> ProcessVnpayReturn(IQueryCollection vnpayData);
+        Task<IEnumerable<OrderDto>> GetAllOrdersAsync();
     }
 }

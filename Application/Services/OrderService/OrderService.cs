@@ -196,5 +196,12 @@ namespace FYP2025.Application.Services.OrderServices
 
             return paymentUrl;
         }
+
+        public async Task<IEnumerable<OrderDto>> GetAllOrdersAsync()
+        {
+            var orders = await _orderRepository.GetAllAsync();
+            var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders);
+            return orderDtos;
+        }
     }
 }

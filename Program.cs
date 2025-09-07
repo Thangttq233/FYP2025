@@ -17,6 +17,7 @@ using FYP2025.Application.Services.OrderService;
 using Microsoft.OpenApi.Models;
 using FYP2025.Application.Services.Vnpay;
 using FYP2025.Application.Services.OrderServices;
+using FYP2025.Application.Services.ProductService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +47,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IVnpayService, VnpayService>();
+builder.Services.AddScoped<IProductService, ProductService>();
 
 // Add AutoMapper 
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);

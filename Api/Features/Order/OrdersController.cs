@@ -168,5 +168,14 @@ namespace FYP2025.Api.Features.Order
             }
             return BadRequest("Thanh toán thất bại. Vui lòng kiểm tra lại đơn hàng.");
         }
+
+        // GET: api/orders/all (Admin only)
+        [HttpGet("all")]
+        [Authorize(Roles = nameof(RolesEnum.Admin))]
+        public async Task<ActionResult<IEnumerable<OrderDto>>> GetAllOrders()
+        {
+            var orders = await _orderService.GetAllOrdersAsync();
+            return Ok(orders);
+        }
     }
 }
