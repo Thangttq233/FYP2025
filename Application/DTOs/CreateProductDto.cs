@@ -12,7 +12,6 @@ namespace FYP2025.Application.DTOs
         public string Description { get; set; }
         [Required]
         public required string CategoryId { get; set; }
-        public string CategoryName { get; set; }
         public IFormFile ImageFile { get; set; }
         public ICollection<CreateProductVariantDto>? Variants { get; set; } = new List<CreateProductVariantDto>();
     }
