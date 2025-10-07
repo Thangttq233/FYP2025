@@ -4,6 +4,7 @@ namespace FYP2025.Application.DTOs
 {
     public class UpdateProductVariantDto
     {
+        public string? Id { get; set; }
         [Required]
         [MaxLength(50)]
         public string Color { get; set; }

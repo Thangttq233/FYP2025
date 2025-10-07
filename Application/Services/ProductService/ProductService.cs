@@ -117,22 +117,68 @@ namespace FYP2025.Application.Services.ProductService
             return _mapper.Map<ProductDto>(createdProduct);
         }
 
+        //public async Task<ProductDto> UpdateProductAsync(string id, UpdateProductDto updateProductDto)
+        //{
+        //    var trimmedId = id.Trim();
+        //    var productToUpdate = await _productRepository.GetByIdAsync(trimmedId);
+        //    if (productToUpdate == null)
+        //    {
+        //        return null;
+        //    }
+
+        //    if (!await _categoryRepository.ExistsAsync(updateProductDto.CategoryId))
+        //    {
+        //        throw new Exception($"Category with ID {updateProductDto.CategoryId} does not exist.");
+        //    }
+
+        //    if (updateProductDto.ImageFile != null && updateProductDto.ImageFile.Length > 0)
+        //    {
+        //        if (!string.IsNullOrEmpty(productToUpdate.ImageUrl))
+        //        {
+        //            try
+        //            {
+        //                var uri = new Uri(productToUpdate.ImageUrl);
+        //                var publicId = Path.GetFileNameWithoutExtension(uri.LocalPath);
+        //                await _photoService.DeletePhotoAsync(publicId);
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                Console.WriteLine($"Error deleting old product image: {ex.Message}");
+        //            }
+        //        }
+
+        //        var uploadResult = await _photoService.UploadPhotoAsync(updateProductDto.ImageFile);
+        //        if (uploadResult.Error != null)
+        //        {
+        //            throw new Exception($"Failed to upload new image: {uploadResult.Error.Message}");
+        //        }
+        //        productToUpdate.ImageUrl = uploadResult.SecureUrl.ToString();
+        //    }
+
+        //    _mapper.Map(updateProductDto, productToUpdate);
+        //    productToUpdate.Id = trimmedId;
+        //    await _productRepository.UpdateAsync(productToUpdate);
+
+        //    return _mapper.Map<ProductDto>(productToUpdate);
+        //}
+
+
         public async Task<ProductDto> UpdateProductAsync(string id, UpdateProductDto updateProductDto)
         {
             var trimmedId = id.Trim();
             var productToUpdate = await _productRepository.GetByIdAsync(trimmedId);
+
             if (productToUpdate == null)
-            {
-                return null;
-            }
+                throw new Exception($"Product with ID {trimmedId} not found.");
 
+            // Kiểm tra Category
             if (!await _categoryRepository.ExistsAsync(updateProductDto.CategoryId))
-            {
                 throw new Exception($"Category with ID {updateProductDto.CategoryId} does not exist.");
-            }
 
+            // --- Upload ảnh sản phẩm nếu có ---
             if (updateProductDto.ImageFile != null && updateProductDto.ImageFile.Length > 0)
             {
+                // Xoá ảnh cũ nếu có
                 if (!string.IsNullOrEmpty(productToUpdate.ImageUrl))
                 {
                     try
@@ -149,18 +195,85 @@ namespace FYP2025.Application.Services.ProductService
 
                 var uploadResult = await _photoService.UploadPhotoAsync(updateProductDto.ImageFile);
                 if (uploadResult.Error != null)
-                {
-                    throw new Exception($"Failed to upload new image: {uploadResult.Error.Message}");
-                }
+                    throw new Exception($"Failed to upload new product image: {uploadResult.Error.Message}");
+
                 productToUpdate.ImageUrl = uploadResult.SecureUrl.ToString();
             }
 
+            // --- Cập nhật thông tin chung của sản phẩm ---
             _mapper.Map(updateProductDto, productToUpdate);
             productToUpdate.Id = trimmedId;
-            await _productRepository.UpdateAsync(productToUpdate);
 
+            // --- Xử lý variants (chỉ thêm hoặc update, KHÔNG xoá) ---
+            if (updateProductDto.Variants != null)
+            {
+                foreach (var variantDto in updateProductDto.Variants)
+                {
+                    if (string.IsNullOrEmpty(variantDto.Id))
+                    {
+                        // 🔵 Thêm mới variant
+                        var newVariant = _mapper.Map<ProductVariant>(variantDto);
+                        newVariant.Id = Guid.NewGuid().ToString();
+                        newVariant.ProductId = productToUpdate.Id;
+
+                        // Nếu có ảnh thì upload
+                        if (variantDto.ImageFile != null && variantDto.ImageFile.Length > 0)
+                        {
+                            var uploadResult = await _photoService.UploadPhotoAsync(variantDto.ImageFile);
+                            if (uploadResult.Error != null)
+                                throw new Exception($"Failed to upload variant image: {uploadResult.Error.Message}");
+                            newVariant.ImageUrl = uploadResult.SecureUrl.ToString();
+                        }
+                        else
+                        {
+                            // Nếu không có ảnh thì gán ảnh mặc định
+                            newVariant.ImageUrl = "https://res.cloudinary.com/demo/image/upload/no-image.jpg";
+                        }
+
+                        productToUpdate.Variants.Add(newVariant);
+                    }
+                    else
+                    {
+                        // 🟢 Update variant cũ
+                        var existingVariant = productToUpdate.Variants.FirstOrDefault(v => v.Id == variantDto.Id);
+                        if (existingVariant != null)
+                        {
+                            // Nếu có ảnh mới thì upload và xoá ảnh cũ
+                            if (variantDto.ImageFile != null && variantDto.ImageFile.Length > 0)
+                            {
+                                if (!string.IsNullOrEmpty(existingVariant.ImageUrl))
+                                {
+                                    try
+                                    {
+                                        var uri = new Uri(existingVariant.ImageUrl);
+                                        var publicId = Path.GetFileNameWithoutExtension(uri.LocalPath);
+                                        await _photoService.DeletePhotoAsync(publicId);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"Error deleting old variant image: {ex.Message}");
+                                    }
+                                }
+
+                                var uploadResult = await _photoService.UploadPhotoAsync(variantDto.ImageFile);
+                                if (uploadResult.Error != null)
+                                    throw new Exception($"Failed to upload new variant image: {uploadResult.Error.Message}");
+                                existingVariant.ImageUrl = uploadResult.SecureUrl.ToString();
+                            }
+
+                            // Cập nhật các trường còn lại
+                            _mapper.Map(variantDto, existingVariant);
+                        }
+                    }
+                }
+            }
+
+            await _productRepository.UpdateAsync(productToUpdate);
             return _mapper.Map<ProductDto>(productToUpdate);
         }
+
+
+
 
         public async Task UpdateProductImageAsync(string id, IFormFile imageFile)
         {
