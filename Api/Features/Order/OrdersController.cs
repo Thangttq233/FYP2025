@@ -16,7 +16,7 @@ namespace FYP2025.Api.Features.Order
     {
         private readonly IOrderService _orderService;
         private readonly IVnpayService _vnpayService;
-        public OrdersController(IOrderService orderService, IVnpayService vnpayService) // <--- THÊM VÀO CONSTRUCTOR
+        public OrdersController(IOrderService orderService, IVnpayService vnpayService) 
         {
             _orderService = orderService;
             _vnpayService = vnpayService;
@@ -68,7 +68,7 @@ namespace FYP2025.Api.Features.Order
                     return NotFound($"Order with ID {orderId} not found.");
                 }
 
-                // Đảm bảo chỉ user sở hữu order hoặc Admin/Saler mới được xem
+
                 if (order.UserId != GetUserId() && !User.IsInRole(nameof(RolesEnum.Admin)) && !User.IsInRole(nameof(RolesEnum.Saler)))
                 {
                     return Forbid(); // Trả về 403 Forbidden nếu không có quyền

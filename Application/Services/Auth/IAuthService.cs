@@ -7,8 +7,8 @@ namespace FYP2025.Application.Services.Auth
     {
         Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request, string ipAddress); 
         Task<AuthResponseDto> LoginAsync(LoginRequestDto request, string ipAddress);
-        Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request, string ipAddress); // <--- THÊM DÒNG NÀY
-        Task<bool> RevokeRefreshTokenAsync(string token, string ipAddress); // <--- THÊM DÒNG NÀY
+        Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request, string ipAddress); 
+        Task<bool> RevokeRefreshTokenAsync(string token, string ipAddress); 
         Task<AuthResponseDto> AssignRoleToUserAsync(string email, string roleName);
         Task<AuthResponseDto> RemoveRoleFromUserAsync(string email, string roleName);
         Task<List<string>> GetUserRolesAsync(string userId);

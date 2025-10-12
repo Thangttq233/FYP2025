@@ -56,7 +56,7 @@ namespace FYP2025.Application.Services.OrderServices
                 throw new ArgumentException("Người dùng không hợp lệ.");
             }
 
-            // CHỈ KIỂM TRA TỒN KHO, KHÔNG GIẢM TỒN KHO Ở ĐÂY
+ 
             var orderItems = new List<OrderItem>();
             decimal totalOrderPrice = 0;
 

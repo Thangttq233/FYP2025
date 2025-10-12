@@ -117,52 +117,6 @@ namespace FYP2025.Application.Services.ProductService
             return _mapper.Map<ProductDto>(createdProduct);
         }
 
-        //public async Task<ProductDto> UpdateProductAsync(string id, UpdateProductDto updateProductDto)
-        //{
-        //    var trimmedId = id.Trim();
-        //    var productToUpdate = await _productRepository.GetByIdAsync(trimmedId);
-        //    if (productToUpdate == null)
-        //    {
-        //        return null;
-        //    }
-
-        //    if (!await _categoryRepository.ExistsAsync(updateProductDto.CategoryId))
-        //    {
-        //        throw new Exception($"Category with ID {updateProductDto.CategoryId} does not exist.");
-        //    }
-
-        //    if (updateProductDto.ImageFile != null && updateProductDto.ImageFile.Length > 0)
-        //    {
-        //        if (!string.IsNullOrEmpty(productToUpdate.ImageUrl))
-        //        {
-        //            try
-        //            {
-        //                var uri = new Uri(productToUpdate.ImageUrl);
-        //                var publicId = Path.GetFileNameWithoutExtension(uri.LocalPath);
-        //                await _photoService.DeletePhotoAsync(publicId);
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                Console.WriteLine($"Error deleting old product image: {ex.Message}");
-        //            }
-        //        }
-
-        //        var uploadResult = await _photoService.UploadPhotoAsync(updateProductDto.ImageFile);
-        //        if (uploadResult.Error != null)
-        //        {
-        //            throw new Exception($"Failed to upload new image: {uploadResult.Error.Message}");
-        //        }
-        //        productToUpdate.ImageUrl = uploadResult.SecureUrl.ToString();
-        //    }
-
-        //    _mapper.Map(updateProductDto, productToUpdate);
-        //    productToUpdate.Id = trimmedId;
-        //    await _productRepository.UpdateAsync(productToUpdate);
-
-        //    return _mapper.Map<ProductDto>(productToUpdate);
-        //}
-
-
         public async Task<ProductDto> UpdateProductAsync(string id, UpdateProductDto updateProductDto)
         {
             var trimmedId = id.Trim();
@@ -496,7 +450,6 @@ namespace FYP2025.Application.Services.ProductService
             }
 
             product.Variants.Remove(variantToRemove);
-
             await _productRepository.UpdateAsync(product);
         }
     }

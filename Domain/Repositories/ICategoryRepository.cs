@@ -1,4 +1,6 @@
 ﻿using FYP2025.Domain.Entities;
+using FYP2025.Domain.Enums;
+using System.Threading.Tasks;
 
 namespace FYP2025.Domain.Repositories
 {
@@ -9,6 +11,7 @@ namespace FYP2025.Domain.Repositories
         Task AddAsync(Category category);
         Task UpdateAsync(Category category);
         Task DeleteAsync(string id); 
-        Task<bool> ExistsAsync(string id); 
+        Task<bool> ExistsAsync(string id);
+        Task<IEnumerable<Category>> GetByMainCategoryAsync(MainCategoryType mainCategory);
     }
 }

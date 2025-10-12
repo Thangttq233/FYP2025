@@ -1,4 +1,5 @@
 ﻿using FYP2025.Domain.Entities;
+using FYP2025.Domain.Enums;
 using FYP2025.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,6 +54,13 @@ namespace FYP2025.Infrastructure.Data.Repositories
         public async Task<bool> ExistsAsync(string id) 
         {
             return await _context.Categories.AnyAsync(c => c.Id == id);
+        }
+
+        public async Task<IEnumerable<Category>> GetByMainCategoryAsync(MainCategoryType mainCategory)
+        {
+            return await _context.Categories
+                .Where(c => c.MainCategory == mainCategory)
+                .ToListAsync();
         }
     }
 }

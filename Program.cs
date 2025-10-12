@@ -21,23 +21,17 @@ using FYP2025.Application.Services.ProductService;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//  LỖI DATETIME.KIND=UNSPECIFIED 
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 
 
-// Đăng ký DbContext với PostgreSQL
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Cấu hình CloudinarySettings bind từ appsettings.json
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
-
-// Đăng ký PhotoService vào DI container
 builder.Services.AddScoped<IPhotoService, PhotoService>();
-
-// Đăng ký Repositories 
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
@@ -48,22 +42,13 @@ builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IVnpayService, VnpayService>();
 builder.Services.AddScoped<IProductService, ProductService>();
-
-// Add AutoMapper 
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
-
 builder.Services.AddControllers()
     .AddApplicationPart(Assembly.GetExecutingAssembly());
-
-// Cấu hình Identity
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
-
 builder.Services.Configure<VnpaySettings>(builder.Configuration.GetSection("VnpaySettings"));
-
-// CẤU HÌNH JWT AUTHENTICATION 
-
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
 var issuer = jwtSettings["Issuer"];
@@ -97,7 +82,6 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddSwaggerGen(options =>
 {
-    // Cấu hình để thêm nút "Authorize" vào Swagger UI
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Vui lòng nhập 'Bearer ' theo sau là token",
@@ -123,6 +107,7 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+
 
 
 builder.Services.AddEndpointsApiExplorer();

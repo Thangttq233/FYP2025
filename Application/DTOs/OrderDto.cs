@@ -12,6 +12,7 @@ namespace FYP2025.Application.DTOs
         public string CustomerEmail { get; set; } 
         public DateTime OrderDate { get; set; }
         public OrderStatus Status { get; set; }
+        public PaymentStatus PaymentStatus { get; set; }
         public decimal TotalPrice { get; set; }
         public string ShippingAddress { get; set; }
         public string PhoneNumber { get; set; }

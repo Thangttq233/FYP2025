@@ -15,6 +15,6 @@ namespace FYP2025.Application.DTOs
         public decimal Price { get; set; }
         [Range(0, int.MaxValue)]
         public int StockQuantity { get; set; }
-        public IFormFile ImageFile { get; set; }
+        public IFormFile? ImageFile { get; set; }
     }
 }

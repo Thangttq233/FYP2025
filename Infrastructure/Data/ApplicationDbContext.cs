@@ -2,19 +2,19 @@
 using FYP2025.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using System.Linq; // Cần thiết cho SelectMany nếu chưa có
-using FYP2025.Application.Common; // <--- THÊM USING NÀY CHO RolesEnum
+using System.Linq; 
+using FYP2025.Application.Common; 
 
 namespace FYP2025.Infrastructure.Data
 {
-    // Thay đổi kế thừa từ DbContext sang IdentityDbContext
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string> // string là kiểu dữ liệu của Id (Guid.ToString())
+
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, string> 
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
 
-        // Các DbSet hiện có của bạn
+
         public DbSet<Category> Categories { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<ProductVariant> ProductVariants { get; set; }
@@ -27,10 +27,16 @@ namespace FYP2025.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // QUAN TRỌNG: Gọi base.OnModelCreating trước để Identity tạo các bảng của nó
+
             base.OnModelCreating(modelBuilder);
 
-            // Cấu hình các mối quan hệ và ràng buộc cho Product và ProductVariant
+
+
+            modelBuilder.Entity<Category>()
+                .Property(c => c.MainCategory)
+                .HasConversion<string>() // enum → string
+                .IsRequired();
+
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Products)
@@ -71,7 +77,7 @@ namespace FYP2025.Infrastructure.Data
                 .HasOne(oi => oi.ProductVariant)
                 .WithMany()
                 .HasForeignKey(oi => oi.ProductVariantId)
-                .IsRequired() // Sửa: OrderItem phải có ProductVariant
+                .IsRequired() 
                 .OnDelete(DeleteBehavior.Restrict); // Ngăn chặn cascade delete
 
             modelBuilder.Entity<Order>()
@@ -85,7 +91,7 @@ namespace FYP2025.Infrastructure.Data
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Cấu hình Role hạt giống (Seeding Roles) sử dụng Enum và ID CỐ ĐỊNH (như đã có)
+
             string adminRoleId = "a8204620-8025-4523-a18d-68e1c6b1a37c";
             string customerRoleId = "c25c30f4-5f53-43a9-a9a7-8028120b6088";
             string salerRoleId = "s9d4e5f6-7890-1234-a789-b876c543d210";

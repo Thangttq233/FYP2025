@@ -14,7 +14,7 @@ namespace FYP2025.Application.Services.CartService
     public class CartService : ICartService
     {
         private readonly ICartRepository _cartRepository;
-        private readonly IProductRepository _productRepository; // Cần để kiểm tra ProductVariant
+        private readonly IProductRepository _productRepository; 
         private readonly IMapper _mapper;
 
         public CartService(ICartRepository cartRepository,
@@ -26,16 +26,7 @@ namespace FYP2025.Application.Services.CartService
             _mapper = mapper;
         }
 
-        //private async Task<Cart> GetOrCreateUserCartAsync(string userId)
-        //{
-        //    var cart = await _cartRepository.GetCartByUserIdAsync(userId);
-        //    if (cart == null)
-        //    {
-        //        cart = new FYP2025.Domain.Entities.Cart { Id = Guid.NewGuid().ToString(), UserId = userId };
-        //        await _cartRepository.AddAsync(cart);
-        //    }
-        //    return cart;
-        //}
+       
 
         private async Task<Cart> GetOrCreateUserCartAsync(string userId)
         {

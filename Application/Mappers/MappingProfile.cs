@@ -1,5 +1,4 @@
-﻿// FYP2025.Application/Mappers/MappingProfile.cs
-using AutoMapper;
+﻿using AutoMapper;
 using FYP2025.Application.DTOs;
 using FYP2025.Domain.Entities;
 using FYP2025.Infrastructure.Data;

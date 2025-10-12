@@ -3,6 +3,7 @@ using FYP2025.Domain.Entities;
 using FYP2025.Domain.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using AutoMapper;
+using FYP2025.Domain.Enums;
 
 namespace FYP2025.Api.Features.Categories
 {
@@ -57,7 +58,7 @@ namespace FYP2025.Api.Features.Categories
 
         // PUT api/categories/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCategory(string id, [FromBody] UpdateCategoryDto updateCategoryDto) // Thay đổi từ int sang string
+        public async Task<IActionResult> UpdateCategory(string id, [FromBody] UpdateCategoryDto updateCategoryDto) 
         {
             if (!await _categoryRepository.ExistsAsync(id))
             {
@@ -84,5 +85,14 @@ namespace FYP2025.Api.Features.Categories
             await _categoryRepository.DeleteAsync(id);
             return NoContent();
         }
+
+        [HttpGet("main/{mainCategory}")]
+        public async Task<ActionResult<IEnumerable<CategoryDto>>> GetByMainCategory(MainCategoryType mainCategory)
+        {
+            var categories = await _categoryRepository.GetByMainCategoryAsync(mainCategory);
+            var dtos = _mapper.Map<IEnumerable<CategoryDto>>(categories);
+            return Ok(dtos);
+        }
+
     }
 }

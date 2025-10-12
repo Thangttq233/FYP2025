@@ -13,6 +13,14 @@ namespace FYP2025.Domain.Entities
         Cancelled       
     }
 
+    public enum PaymentStatus
+    {
+        Unpaid,
+        Paid,
+        Failed,
+        Refunded
+    }
+
     public class Order
     {
         public string Id { get; set; } // ID của đơn hàng
@@ -21,6 +29,7 @@ namespace FYP2025.Domain.Entities
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         public OrderStatus Status { get; set; } = OrderStatus.Pending; // Trạng thái mặc định
         public decimal TotalPrice { get; set; } // Tổng giá trị đơn hàng
+        public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Unpaid;
 
         // Thông tin vận chuyển/địa chỉ nhận hàng (tùy thuộc vào thiết kế chi tiết hơn)
         public string ShippingAddress { get; set; }

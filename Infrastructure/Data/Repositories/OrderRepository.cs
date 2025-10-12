@@ -18,7 +18,7 @@ namespace FYP2025.Infrastructure.Data.Repositories
         {
             return await _context.Orders
                                  .Where(o => o.UserId == userId)
-                                 .Include(o => o.Items) // Bao gồm OrderItems
+                                 .Include(o => o.Items) 
                                  .OrderByDescending(o => o.OrderDate) // Sắp xếp theo ngày mới nhất
                                  .ToListAsync();
         }
@@ -26,7 +26,7 @@ namespace FYP2025.Infrastructure.Data.Repositories
         public async Task<Order> GetOrderDetailsAsync(string orderId)
         {
             return await _context.Orders
-                                 .Include(o => o.Items) // Bao gồm OrderItems
+                                 .Include(o => o.Items) 
                                  .Include(o => o.User) // Bao gồm thông tin User (ApplicationUser)
                                  .FirstOrDefaultAsync(o => o.Id == orderId);
         }
