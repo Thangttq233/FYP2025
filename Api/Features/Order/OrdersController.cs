@@ -7,16 +7,16 @@ using System.Security.Claims;
 using System.Collections.Generic;
 using FYP2025.Application.Common;
 using FYP2025.Application.Services.Vnpay;
-namespace FYP2025.Api.Features.Order 
+namespace FYP2025.Api.Features.Order
 {
     [ApiController]
     [Route("api/orders")]
-    [Authorize] 
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;
         private readonly IVnpayService _vnpayService;
-        public OrdersController(IOrderService orderService, IVnpayService vnpayService) 
+        public OrdersController(IOrderService orderService, IVnpayService vnpayService)
         {
             _orderService = orderService;
             _vnpayService = vnpayService;
@@ -113,7 +113,7 @@ namespace FYP2025.Api.Features.Order
 
         // PUT: api/orders/update-status (Chỉ Admin hoặc Saler)
         [HttpPut("update-status")]
-        [Authorize(Roles = $"{nameof(RolesEnum.Admin)},{nameof(RolesEnum.Saler)}")] 
+        [Authorize(Roles = $"{nameof(RolesEnum.Admin)},{nameof(RolesEnum.Saler)}")]
         public async Task<IActionResult> UpdateOrderStatus([FromBody] UpdateOrderStatusRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -130,52 +130,34 @@ namespace FYP2025.Api.Features.Order
         }
 
         // POST: api/orders/{orderId}/pay
-        [HttpPost("{orderId}/pay")]
-        public async Task<IActionResult> CreateVnpayPayment(string orderId)
+        [HttpPost("pay")]
+        public async Task<IActionResult> CreateVnpayPayment([FromBody] OrderDto order)
         {
-            try
+            if (order == null)
             {
-                var userId = GetUserId();
-                var paymentUrl = await _orderService.CreateVnpayPaymentUrl(userId, orderId); // <--- Gọi OrderService
-                return Ok(new { paymentUrl }); // Trả về URL thanh toán VNPAY
+                return BadRequest("Order cannot be null");
             }
-            catch (ArgumentException ex)
+
+            if (!ModelState.IsValid)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest("Invalid order data");
             }
-            catch (InvalidOperationException ex)
+
+            var paymentUrl = await _vnpayService.CreateVnpayPaymentUrl(order);
+            return Ok(new { paymentUrl });
+        }
+        [HttpPost("returnURL")]
+        public async Task<IActionResult> VnpayReturn([FromBody] ReturnDto request)
+        {
+            if (string.IsNullOrEmpty(request.ResponseCode) || string.IsNullOrEmpty(request.OrderId))
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new { message = "Payment processing failed" });
             }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized();
-            }
+
+            await _vnpayService.HandleVnpayUrl(request.ResponseCode, request.OrderId);
+            return Ok(new { message = "Payment processed successfully" });
         }
 
-        // GET: api/payment/vnpay-return (API callback từ VNPAY)
-        // [AllowAnonymous] vì VNPAY gửi request, không phải người dùng đã đăng nhập
-        [HttpGet("/api/payment/vnpay-return")] // Sử dụng route tuyệt đối để tránh trùng route
-        [AllowAnonymous]
-        public async Task<IActionResult> VnpayReturn()
-        {
-            var vnpayData = HttpContext.Request.Query;
-            var isSuccess = await _orderService.ProcessVnpayReturn(vnpayData);
 
-            if (isSuccess)
-            {
-                return Ok("Thanh toán thành công. Đơn hàng của bạn đã được cập nhật.");
-            }
-            return BadRequest("Thanh toán thất bại. Vui lòng kiểm tra lại đơn hàng.");
-        }
-
-        // GET: api/orders/all (Admin only)
-        [HttpGet("all")]
-        [Authorize(Roles = nameof(RolesEnum.Admin))]
-        public async Task<ActionResult<IEnumerable<OrderDto>>> GetAllOrders()
-        {
-            var orders = await _orderService.GetAllOrdersAsync();
-            return Ok(orders);
-        }
     }
 }

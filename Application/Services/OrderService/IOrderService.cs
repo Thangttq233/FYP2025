@@ -10,8 +10,8 @@ namespace FYP2025.Application.Services.OrderService
         Task<IEnumerable<OrderDto>> GetUserOrdersAsync(string userId);
         Task<OrderDto> GetOrderDetailsAsync(string orderId);
         Task<bool> UpdateOrderStatusAsync(string orderId, UpdateOrderStatusRequestDto request);
-        Task<string> CreateVnpayPaymentUrl(string userId, string orderId);
-        Task<bool> ProcessVnpayReturn(IQueryCollection vnpayData);
+        //Task<string> CreateVnpayPaymentUrl(string userId, string orderId);
+        //Task<bool> ProcessVnpayReturn(IQueryCollection vnpayData);
         Task<IEnumerable<OrderDto>> GetAllOrdersAsync();
     }
 }

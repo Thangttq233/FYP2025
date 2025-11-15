@@ -1,106 +1,145 @@
-﻿// FYP2025/Application/Services/Vnpay/VnpayService.cs
-using FYP2025.Application.Services.Vnpay;
-using FYP2025.Configurations;
+﻿using FYP2025.Configurations;
 using FYP2025.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http.Headers;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
-using System.Web; // Thêm using này
+using System.Web;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using FYP2025.Domain.Repositories;
+using FYP2025.Application.DTOs;
 
 namespace FYP2025.Application.Services.Vnpay
 {
     public class VnpayService : IVnpayService
     {
+        private readonly IOrderRepository _orderRepository;
         private readonly VnpaySettings _vnpaySettings;
         private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public VnpayService(IOptions<VnpaySettings> vnpaySettings, IConfiguration configuration)
+        public VnpayService(
+            IOrderRepository orderRepository,
+            IOptions<VnpaySettings> vnpaySettings,
+            IConfiguration configuration,
+            IHttpContextAccessor httpContextAccessor)
         {
+            _orderRepository = orderRepository;
             _vnpaySettings = vnpaySettings.Value;
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task<string> CreatePaymentUrl(Order order)
+        private SortedDictionary<string, string> SortObject(Dictionary<string, string> obj)
         {
-            var vnp_Url = _vnpaySettings.BaseUrl;
-            var vnp_TmnCode = _vnpaySettings.TmnCode;
-            var vnp_HashSecret = _vnpaySettings.HashSecret;
+            var sorted = new SortedDictionary<string, string>(StringComparer.Ordinal);
 
-            var vnpayData = new SortedDictionary<string, string>();
-            vnpayData.Add("vnp_Version", "2.1.0");
-            vnpayData.Add("vnp_Command", "pay");
-            vnpayData.Add("vnp_TmnCode", vnp_TmnCode);
-            vnpayData.Add("vnp_Amount", (order.TotalPrice * 100).ToString()); // Số tiền phải nhân 100
-            vnpayData.Add("vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss"));
-            vnpayData.Add("vnp_CurrCode", "VND");
-            vnpayData.Add("vnp_IpAddr", "127.0.0.1"); // IP Address của client
-            vnpayData.Add("vnp_Locale", "vn");
-            vnpayData.Add("vnp_OrderInfo", $"Thanh toan don hang {order.Id}");
-            vnpayData.Add("vnp_OrderType", "other");
-            vnpayData.Add("vnp_ReturnUrl", _vnpaySettings.ReturnUrl);
-            vnpayData.Add("vnp_TxnRef", order.Id); // Mã giao dịch của bạn
-
-            var hashData = new StringBuilder();
-            foreach (var (key, value) in vnpayData)
+            foreach (var kv in obj)
             {
-                hashData.Append(key + "=" + value);
-                hashData.Append("&");
+                var encodedKey = Uri.EscapeDataString(kv.Key);
+                var encodedValue = Uri.EscapeDataString(kv.Value).Replace("%20", "+");
+
+                sorted[encodedKey] = encodedValue;
             }
 
-            hashData.Remove(hashData.Length - 1, 1);
-            var secureHash = HmacSha512(vnp_HashSecret, hashData.ToString());
+            return sorted;
+        }
 
-            var paymentUrl = $"{vnp_Url}?" + string.Join("&", vnpayData.Select(kvp => $"{kvp.Key}={HttpUtility.UrlEncode(kvp.Value)}")) + $"&vnp_SecureHash={secureHash}";
+        public async Task<string> CreateVnpayPaymentUrl(OrderDto order)
+        {
+            var ipAddr = "127.0.0.1";
+            var tmnCode = "00YLU7W1";
+            var secretKey = "B4EV9TU4ZA8J6QXPI5Q4A12MBVBU2DHV";
+            var vnpUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+            var returnUrl = "http://localhost:5173/order-success";
+            var amount = order.TotalPrice;
+            var orderId = order.Id;
+
+            const int exchangeRate = 25000;
+
+            var createDate = DateTime.Now.ToString("yyyyMMddHHmmss");
+
+            // STEP 1: Tạo Dictionary thô (chưa sort)
+            var rawParams = new Dictionary<string, string>
+    {
+        { "vnp_Version", "2.1.0" },
+        { "vnp_Command", "pay" },
+        { "vnp_TmnCode", tmnCode },
+        { "vnp_Locale", "vn" },
+        { "vnp_CurrCode", "VND" },
+        { "vnp_TxnRef", orderId },
+        { "vnp_OrderInfo", $"Thanh toán đơn hàng {orderId}" },
+        { "vnp_OrderType", "other" },
+        { "vnp_Amount", (amount * 100).ToString() },
+        { "vnp_IpAddr", ipAddr },
+        { "vnp_CreateDate", createDate },
+        { "vnp_BankCode", "NCB" },
+        { "vnp_ReturnUrl", returnUrl }
+    };
+
+            // STEP 2: Sort + encode giống TS
+            var sortedParams = SortObject(rawParams);
+
+            // STEP 3: Build signData (KHÔNG encode lần 2)
+            var signData = string.Join("&",
+                sortedParams.Select(p => $"{p.Key}={p.Value}")
+            );
+
+            // STEP 4: SHA512
+            string secureHash;
+            using (var hmac = new HMACSHA512(Encoding.UTF8.GetBytes(secretKey)))
+            {
+                var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(signData));
+                secureHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+            }
+
+            // STEP 5: Thêm hash vào param
+            sortedParams.Add("vnp_SecureHash", secureHash);
+
+            // STEP 6: Build final redirect URL
+            var finalQuery = string.Join("&",
+                sortedParams.Select(p => $"{p.Key}={p.Value}")
+            );
+
+            var paymentUrl = $"{vnpUrl}?{finalQuery}";
 
             return paymentUrl;
         }
 
-        public async Task<bool> ProcessVnpayReturn(IQueryCollection vnpayData)
+
+        public async Task<object> HandleVnpayUrl(string responseCode, string orderId)
         {
-            // Lấy các tham số từ query string
-            var secureHash = vnpayData["vnp_SecureHash"];
-
-            // Tạo chuỗi để xác minh chữ ký
-            var sortedVnpayData = new SortedDictionary<string, string>(
-                vnpayData.ToDictionary(k => k.Key, v => v.Value.ToString()));
-
-            // SỬA LỖI: LOẠI BỎ vnp_SecureHash TỪ DICTIONARY ĐÃ TẠO
-            if (sortedVnpayData.ContainsKey("vnp_SecureHash"))
+            if (responseCode == "00")
             {
-                sortedVnpayData.Remove("vnp_SecureHash");
-            }
 
-            var hashData = new StringBuilder();
-            foreach (var (key, value) in sortedVnpayData)
+
+                try
+                {
+                    var order = await _orderRepository.GetByIdAsync(orderId);
+                    order.PaymentStatus = PaymentStatus.Paid;
+                    await _orderRepository.UpdateAsync(order);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                   throw new Exception("Error updating order payment status: " + ex.Message);
+                }
+            }
+            else
             {
-                hashData.Append(key + "=" + value);
-                hashData.Append("&");
+                var order = await _orderRepository.GetByIdAsync(orderId);
+                order.PaymentStatus = PaymentStatus.Unpaid;
+                await _orderRepository.UpdateAsync(order);
+                return true;
             }
-            hashData.Remove(hashData.Length - 1, 1);
-
-            // Xác minh chữ ký
-            var vnp_HashSecret = _vnpaySettings.HashSecret;
-            var mySecureHash = HmacSha512(vnp_HashSecret, hashData.ToString());
-
-            if (mySecureHash != secureHash)
-            {
-                return false; // Chữ ký không hợp lệ, trả về false
-            }
-
-            // Chữ ký hợp lệ, trả về true
-            return true;
         }
-        private string HmacSha512(string key, string data)
-        {
-            var hmac = new HMACSHA512(Encoding.UTF8.GetBytes(key));
-            var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-            return BitConverter.ToString(hash).Replace("-", "").ToLower();
-        }
+
     }
 }

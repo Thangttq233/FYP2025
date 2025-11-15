@@ -18,6 +18,7 @@ using Microsoft.OpenApi.Models;
 using FYP2025.Application.Services.Vnpay;
 using FYP2025.Application.Services.OrderServices;
 using FYP2025.Application.Services.ProductService;
+using FYP2025.Application.Services.ChatService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,7 +43,16 @@ builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IVnpayService, VnpayService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+
+// Chat Services
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+builder.Services.AddScoped<IMessageRepository, MessageRepository>();
+builder.Services.AddScoped<IChatService, ChatService>();
+
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+
+builder.Services.AddSignalR();
+
 builder.Services.AddControllers()
     .AddApplicationPart(Assembly.GetExecutingAssembly());
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
@@ -140,4 +150,5 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<FYP2025.Api.Hubs.ChatHub>("/chathub");
 app.Run();

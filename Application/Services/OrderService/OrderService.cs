@@ -23,7 +23,7 @@ namespace FYP2025.Application.Services.OrderServices
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMapper _mapper;
         private readonly ApplicationDbContext _dbContext; 
-        private readonly IVnpayService _vnpayService;
+        //private readonly IVnpayService _vnpayService;
 
         public OrderService(IOrderRepository orderRepository,
                             ICartRepository cartRepository,
@@ -39,7 +39,7 @@ namespace FYP2025.Application.Services.OrderServices
             _userManager = userManager;
             _mapper = mapper;
             _dbContext = dbContext;
-            _vnpayService = vnpayService;
+            //_vnpayService = vnpayService;
         }
 
         public async Task<OrderDto> CreateOrderFromCartAsync(string userId, CreateOrderRequestDto request)
@@ -139,63 +139,63 @@ namespace FYP2025.Application.Services.OrderServices
         }
 
         // SỬA ĐỔI PHƯƠNG THỨC XỬ LÝ PHẢN HỒI TỪ VNPAY
-        public async Task<bool> ProcessVnpayReturn(IQueryCollection vnpayData)
-        {
-            var secureHashIsValid = await _vnpayService.ProcessVnpayReturn(vnpayData);
+        //public async Task<bool> ProcessVnpayReturn(IQueryCollection vnpayData)
+        //{
+        //    var secureHashIsValid = await _vnpayService.ProcessVnpayReturn(vnpayData);
 
-            if (secureHashIsValid)
-            {
-                var vnp_ResponseCode = vnpayData["vnp_ResponseCode"].ToString();
-                var vnp_TransactionStatus = vnpayData["vnp_TransactionStatus"].ToString();
-                var orderId = vnpayData["vnp_TxnRef"].ToString();
+        //    if (secureHashIsValid)
+        //    {
+        //        var vnp_ResponseCode = vnpayData["vnp_ResponseCode"].ToString();
+        //        var vnp_TransactionStatus = vnpayData["vnp_TransactionStatus"].ToString();
+        //        var orderId = vnpayData["vnp_TxnRef"].ToString();
 
-                if (vnp_ResponseCode == "00" && vnp_TransactionStatus == "00")
-                {
-                    // Thanh toán thành công -> LÀ NƠI CHÚNG TA GIẢM TỒN KHO
-                    var order = await _orderRepository.GetOrderDetailsAsync(orderId); // Lấy order với items
-                    if (order != null && order.Status == OrderStatus.Pending) // Chỉ xử lý khi đơn hàng đang Pending
-                    {
-                        // Lặp qua từng item trong đơn hàng và giảm tồn kho
-                        foreach (var orderItem in order.Items)
-                        {
-                            var productVariant = await _productRepository.GetProductVariantByIdAsync(orderItem.ProductVariantId);
-                            if (productVariant != null)
-                            {
-                                productVariant.StockQuantity -= orderItem.Quantity;
-                                _dbContext.ProductVariants.Update(productVariant);
-                            }
-                        }
+        //        if (vnp_ResponseCode == "00" && vnp_TransactionStatus == "00")
+        //        {
+        //            // Thanh toán thành công -> LÀ NƠI CHÚNG TA GIẢM TỒN KHO
+        //            var order = await _orderRepository.GetOrderDetailsAsync(orderId); // Lấy order với items
+        //            if (order != null && order.Status == OrderStatus.Pending) // Chỉ xử lý khi đơn hàng đang Pending
+        //            {
+        //                // Lặp qua từng item trong đơn hàng và giảm tồn kho
+        //                foreach (var orderItem in order.Items)
+        //                {
+        //                    var productVariant = await _productRepository.GetProductVariantByIdAsync(orderItem.ProductVariantId);
+        //                    if (productVariant != null)
+        //                    {
+        //                        productVariant.StockQuantity -= orderItem.Quantity;
+        //                        _dbContext.ProductVariants.Update(productVariant);
+        //                    }
+        //                }
 
-                        // Cập nhật trạng thái đơn hàng
-                        order.Status = OrderStatus.Processing;
-                        await _orderRepository.UpdateAsync(order);
-                        await _dbContext.SaveChangesAsync(); // Lưu tất cả thay đổi (cả tồn kho và trạng thái)
-                        return true;
-                    }
-                }
-            }
+        //                // Cập nhật trạng thái đơn hàng
+        //                order.Status = OrderStatus.Processing;
+        //                await _orderRepository.UpdateAsync(order);
+        //                await _dbContext.SaveChangesAsync(); // Lưu tất cả thay đổi (cả tồn kho và trạng thái)
+        //                return true;
+        //            }
+        //        }
+        //    }
 
-            // Nếu chữ ký không hợp lệ, hoặc thanh toán thất bại
-            return false;
-        }
+        //    // Nếu chữ ký không hợp lệ, hoặc thanh toán thất bại
+        //    return false;
+        //}
 
-        public async Task<string> CreateVnpayPaymentUrl(string userId, string orderId)
-        {
-            var order = await _orderRepository.GetByIdAsync(orderId);
-            if (order == null || order.UserId != userId)
-            {
-                throw new ArgumentException("Đơn hàng không hợp lệ.");
-            }
+        //public async Task<string> CreateVnpayPaymentUrl(string userId, string orderId)
+        //{
+        //    var order = await _orderRepository.GetByIdAsync(orderId);
+        //    if (order == null || order.UserId != userId)
+        //    {
+        //        throw new ArgumentException("Đơn hàng không hợp lệ.");
+        //    }
 
-            if (order.Status != OrderStatus.Pending)
-            {
-                throw new InvalidOperationException("Chỉ có thể thanh toán các đơn hàng đang chờ xử lý.");
-            }
+        //    if (order.Status != OrderStatus.Pending)
+        //    {
+        //        throw new InvalidOperationException("Chỉ có thể thanh toán các đơn hàng đang chờ xử lý.");
+        //    }
 
-            var paymentUrl = await _vnpayService.CreatePaymentUrl(order);
+        //    var paymentUrl = await _vnpayService.CreatePaymentUrl(order);
 
-            return paymentUrl;
-        }
+        //    return paymentUrl;
+        //}
 
         public async Task<IEnumerable<OrderDto>> GetAllOrdersAsync()
         {
