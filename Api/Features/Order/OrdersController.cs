@@ -71,7 +71,7 @@ namespace FYP2025.Api.Features.Order
 
                 if (order.UserId != GetUserId() && !User.IsInRole(nameof(RolesEnum.Admin)) && !User.IsInRole(nameof(RolesEnum.Saler)))
                 {
-                    return Forbid(); // Trả về 403 Forbidden nếu không có quyền
+                    return Forbid(); 
                 }
 
                 return Ok(order);
@@ -156,6 +156,14 @@ namespace FYP2025.Api.Features.Order
 
             await _vnpayService.HandleVnpayUrl(request.ResponseCode, request.OrderId);
             return Ok(new { message = "Payment processed successfully" });
+        }
+
+        [HttpGet]
+        [Authorize(Roles = $"{nameof(RolesEnum.Admin)},{nameof(RolesEnum.Saler)}")] // Chỉ Admin/Saler
+        public async Task<ActionResult<IEnumerable<OrderDto>>> GetAllOrdersForAdmin()
+        {
+            var orders = await _orderService.GetAllOrdersAsync();
+            return Ok(orders);
         }
 
 

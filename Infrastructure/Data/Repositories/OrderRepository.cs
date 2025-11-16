@@ -13,12 +13,21 @@ namespace FYP2025.Infrastructure.Data.Repositories
         public OrderRepository(ApplicationDbContext context) : base(context)
         {
         }
+        public override async Task<IEnumerable<Order>> GetAllAsync()
+        {
+            return await _context.Orders
+                .Include(o => o.User) 
+                .Include(o => o.Items) 
+                .OrderByDescending(o => o.OrderDate)
+                .ToListAsync();
+        }
 
         public async Task<IEnumerable<Order>> GetUserOrdersAsync(string userId)
         {
             return await _context.Orders
                                  .Where(o => o.UserId == userId)
-                                 .Include(o => o.Items) 
+                                 .Include(o => o.Items)
+                                 .Include(o => o.User)
                                  .OrderByDescending(o => o.OrderDate) // Sắp xếp theo ngày mới nhất
                                  .ToListAsync();
         }

@@ -59,8 +59,6 @@ namespace FYP2025.Application.Services.CartService
             {
                 throw new ArgumentException($"Product variant with ID {request.ProductVariantId} not found.");
             }
-
-            // Kiểm tra số lượng tồn kho
             if (productVariant.StockQuantity < request.Quantity)
             {
                 throw new ArgumentException($"Not enough stock for variant {productVariant.Color} - {productVariant.Size}. Available: {productVariant.StockQuantity}");
@@ -70,13 +68,11 @@ namespace FYP2025.Application.Services.CartService
 
             if (existingItem != null)
             {
-                // Cập nhật số lượng
                 existingItem.Quantity += request.Quantity;
                 await _cartRepository.UpdateCartItemAsync(existingItem);
             }
             else
             {
-                // Tạo CartItem mới
                 var newCartItem = new CartItem
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -86,8 +82,6 @@ namespace FYP2025.Application.Services.CartService
                 };
                 await _cartRepository.AddCartItemAsync(newCartItem);
             }
-
-            // Lấy lại giỏ hàng đầy đủ để trả về DTO
             var updatedCart = await _cartRepository.GetCartByUserIdAsync(userId);
             var updatedCartDto = _mapper.Map<CartDto>(updatedCart);
             if (updatedCart.Items != null)
@@ -107,15 +101,11 @@ namespace FYP2025.Application.Services.CartService
             {
                 throw new ArgumentException($"Cart item with ID {request.CartItemId} not found in cart.");
             }
-
-            // Lấy ProductVariant để kiểm tra tồn kho
             var productVariant = await _productRepository.GetProductVariantByIdAsync(existingItem.ProductVariantId);
             if (productVariant == null)
             {
                 throw new InvalidOperationException("Associated product variant not found. Please remove this item from cart.");
             }
-
-            // Kiểm tra số lượng tồn kho mới
             if (productVariant.StockQuantity < request.Quantity)
             {
                 throw new ArgumentException($"Not enough stock for variant {productVariant.Color} - {productVariant.Size}. Available: {productVariant.StockQuantity}");
@@ -131,7 +121,6 @@ namespace FYP2025.Application.Services.CartService
                 await _cartRepository.UpdateCartItemAsync(existingItem);
             }
 
-            // Lấy lại giỏ hàng đầy đủ
             var updatedCart = await _cartRepository.GetCartByUserIdAsync(userId);
             var updatedCartDto = _mapper.Map<CartDto>(updatedCart);
             if (updatedCart.Items != null)
@@ -153,8 +142,6 @@ namespace FYP2025.Application.Services.CartService
             }
 
             await _cartRepository.DeleteCartItemAsync(cartItemId);
-
-            // Lấy lại giỏ hàng đầy đủ
             var updatedCart = await _cartRepository.GetCartByUserIdAsync(userId);
             var updatedCartDto = _mapper.Map<CartDto>(updatedCart);
             if (updatedCart.Items != null)
@@ -167,10 +154,19 @@ namespace FYP2025.Application.Services.CartService
         public async Task<bool> ClearUserCartAsync(string userId)
         {
             var cart = await _cartRepository.GetCartByUserIdAsync(userId);
-            if (cart == null) return true; // Giỏ hàng đã trống hoặc không tồn tại
+            if (cart == null) return true; 
 
             await _cartRepository.ClearCartAsync(cart.Id);
             return true;
         }
+
+        public async Task<int> GetCartItemCountAsync(string userId)
+        {
+            var cart = await _cartRepository.GetCartByUserIdAsync(userId);
+            if (cart == null) return 0;
+
+            return cart.Items.Sum(i => i.Quantity);
+        }
+
     }
 }

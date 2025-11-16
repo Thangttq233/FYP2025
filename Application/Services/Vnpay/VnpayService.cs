@@ -15,6 +15,7 @@ using System.Web;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using FYP2025.Domain.Repositories;
 using FYP2025.Application.DTOs;
+using FYP2025.Infrastructure.Data;
 
 namespace FYP2025.Application.Services.Vnpay
 {
@@ -22,17 +23,23 @@ namespace FYP2025.Application.Services.Vnpay
     {
         private readonly IOrderRepository _orderRepository;
         private readonly VnpaySettings _vnpaySettings;
+        private readonly IProductRepository _productRepository; 
+        private readonly ApplicationDbContext _dbContext;
         private readonly IConfiguration _configuration;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public VnpayService(
             IOrderRepository orderRepository,
             IOptions<VnpaySettings> vnpaySettings,
+            IProductRepository productRepository, 
+            ApplicationDbContext dbContext,
             IConfiguration configuration,
             IHttpContextAccessor httpContextAccessor)
         {
             _orderRepository = orderRepository;
             _vnpaySettings = vnpaySettings.Value;
+            _productRepository = productRepository; 
+            _dbContext = dbContext;
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
         }
@@ -61,12 +68,8 @@ namespace FYP2025.Application.Services.Vnpay
             var returnUrl = "http://localhost:5173/order-success";
             var amount = order.TotalPrice;
             var orderId = order.Id;
-
             const int exchangeRate = 25000;
-
             var createDate = DateTime.Now.ToString("yyyyMMddHHmmss");
-
-            // STEP 1: Tạo Dictionary thô (chưa sort)
             var rawParams = new Dictionary<string, string>
     {
         { "vnp_Version", "2.1.0" },
@@ -83,27 +86,17 @@ namespace FYP2025.Application.Services.Vnpay
         { "vnp_BankCode", "NCB" },
         { "vnp_ReturnUrl", returnUrl }
     };
-
-            // STEP 2: Sort + encode giống TS
             var sortedParams = SortObject(rawParams);
-
-            // STEP 3: Build signData (KHÔNG encode lần 2)
             var signData = string.Join("&",
                 sortedParams.Select(p => $"{p.Key}={p.Value}")
             );
-
-            // STEP 4: SHA512
             string secureHash;
             using (var hmac = new HMACSHA512(Encoding.UTF8.GetBytes(secretKey)))
             {
                 var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(signData));
                 secureHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
             }
-
-            // STEP 5: Thêm hash vào param
             sortedParams.Add("vnp_SecureHash", secureHash);
-
-            // STEP 6: Build final redirect URL
             var finalQuery = string.Join("&",
                 sortedParams.Select(p => $"{p.Key}={p.Value}")
             );
@@ -116,30 +109,55 @@ namespace FYP2025.Application.Services.Vnpay
 
         public async Task<object> HandleVnpayUrl(string responseCode, string orderId)
         {
-            if (responseCode == "00")
+            if (responseCode == "00") // Thanh toán thành công
             {
-
-
                 try
                 {
-                    var order = await _orderRepository.GetByIdAsync(orderId);
-                    order.PaymentStatus = PaymentStatus.Paid;
-                    await _orderRepository.UpdateAsync(order);
+                    var order = await _orderRepository.GetOrderDetailsAsync(orderId);
+                    if (order == null)
+                    {
+                        throw new Exception("Order not found.");
+                    }
+                    if (order.PaymentStatus == PaymentStatus.Unpaid)
+                    {
+                        order.PaymentStatus = PaymentStatus.Paid;
+                        order.Status = OrderStatus.Processing; 
+                        await _orderRepository.UpdateAsync(order); 
+                        foreach (var orderItem in order.Items)
+                        {
+                            var productVariant = await _productRepository.GetProductVariantByIdAsync(orderItem.ProductVariantId);
+                            if (productVariant != null)
+                            {
+                                if (productVariant.StockQuantity < orderItem.Quantity)
+                                {
+                                    throw new Exception($"Out of stock for variant {productVariant.Id} while confirming payment.");
+                                }
+                                productVariant.StockQuantity -= orderItem.Quantity;
+                                _dbContext.ProductVariants.Update(productVariant);
+                            }
+                        }
+                        await _dbContext.SaveChangesAsync();
+                    }
+
                     return true;
                 }
                 catch (Exception ex)
                 {
-                   throw new Exception("Error updating order payment status: " + ex.Message);
+                    throw new Exception("Error updating order payment status and stock: " + ex.Message);
                 }
             }
-            else
+            else 
             {
                 var order = await _orderRepository.GetByIdAsync(orderId);
-                order.PaymentStatus = PaymentStatus.Unpaid;
-                await _orderRepository.UpdateAsync(order);
-                return true;
+                if (order != null && order.PaymentStatus == PaymentStatus.Unpaid)
+                {
+                    order.Status = OrderStatus.Cancelled; 
+                    await _orderRepository.UpdateAsync(order);
+                }
+                return true; 
             }
         }
-
     }
+
 }
+

@@ -10,5 +10,6 @@ namespace FYP2025.Application.Services.CartService
         Task<CartDto> UpdateCartItemQuantityAsync(string userId, UpdateCartItemRequestDto request);
         Task<CartDto> RemoveCartItemAsync(string userId, string cartItemId);
         Task<bool> ClearUserCartAsync(string userId);
+        Task<int> GetCartItemCountAsync(string userId);
     }
 }

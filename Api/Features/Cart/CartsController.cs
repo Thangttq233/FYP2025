@@ -119,5 +119,20 @@ namespace FYP2025.Api.Features.Cart
                 return Unauthorized(new { message = ex.Message });
             }
         }
+
+        [HttpGet("count")]
+        public async Task<ActionResult<int>> GetCartItemCount()
+        {
+            try
+            {
+                var userId = GetUserId();
+                var count = await _cartService.GetCartItemCountAsync(userId);
+                return Ok(count);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Ok(0); // Nếu chưa login → trả về 0
+            }
+        }
     }
 }
