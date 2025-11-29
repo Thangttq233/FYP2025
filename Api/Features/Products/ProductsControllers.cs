@@ -180,5 +180,29 @@ namespace FYP2025.Api.Features.Products
                 return NotFound(ex.Message);
             }
         }
+
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<ProductDto>>> SearchProducts(
+        [FromQuery] string? name,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice)
+        {
+            var products = await _productService.SearchProductsAsync(name, minPrice, maxPrice);
+            return Ok(products);
+        }
+
+        [HttpGet("total-stock")]
+        public async Task<IActionResult> GetTotalStock()
+        {
+            try
+            {
+                var totalStock = await _productService.GetTotalStockQuantityAsync();
+                return Ok(new { totalStock = totalStock });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

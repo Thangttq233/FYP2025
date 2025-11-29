@@ -28,7 +28,7 @@ namespace FYP2025.Infrastructure.Data.Repositories
                                  .Where(o => o.UserId == userId)
                                  .Include(o => o.Items)
                                  .Include(o => o.User)
-                                 .OrderByDescending(o => o.OrderDate) // Sắp xếp theo ngày mới nhất
+                                 .OrderByDescending(o => o.OrderDate) 
                                  .ToListAsync();
         }
 

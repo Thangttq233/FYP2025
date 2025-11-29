@@ -62,7 +62,7 @@ namespace FYP2025.Api.Features.Auth
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
         {
-            var ipAddress = GetIpAddress(); // Lấy IP Address của client
+            var ipAddress = GetIpAddress(); 
             var result = await _authService.RefreshTokenAsync(request, ipAddress);
 
             if (result.IsSuccess)
@@ -72,8 +72,7 @@ namespace FYP2025.Api.Features.Auth
             return BadRequest(new { Errors = result.Errors });
         }
 
-        // POST: api/auth/revoke (Để thu hồi Refresh Token khi logout)
-        // Cần JWT token hợp lệ để gọi API này
+        // POST: api/auth/revoke 
         [HttpPost("revoke")]
         [Authorize]
         public async Task<IActionResult> Revoke([FromBody] RevokeTokenRequestDto request) 
@@ -94,8 +93,6 @@ namespace FYP2025.Api.Features.Auth
             return BadRequest(new { message = "Không thể thu hồi Refresh Token." });
         }
 
-
-        // Phương thức trợ giúp để lấy IP Address
         private string GetIpAddress()
         {
             if (Request.Headers.ContainsKey("X-Forwarded-For"))
@@ -103,8 +100,7 @@ namespace FYP2025.Api.Features.Auth
             return HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "::1"; 
         }
 
-        // GET: api/auth/check (ví dụ: một API cần xác thực để kiểm tra token)
-        // Chỉ những người dùng đã đăng nhập (có token hợp lệ) mới có thể truy cập
+        // GET: api/auth/check 
         [HttpGet("check")]
         [Authorize] 
         public IActionResult CheckAuthentication()
@@ -125,7 +121,6 @@ namespace FYP2025.Api.Features.Auth
         }
 
         // POST: api/auth/assign-role
-        // API để gán vai trò cho người dùng (Chỉ Admin được dùng)
         [HttpPost("assign-role")]
         [Authorize(Roles = nameof(RolesEnum.Admin))] 
         public async Task<IActionResult> AssignRole([FromBody] AssignRoleRequestDto request)
@@ -144,7 +139,6 @@ namespace FYP2025.Api.Features.Auth
         }
 
         // POST: api/auth/remove-role
-        // API để xóa vai trò khỏi người dùng (Chỉ Admin được dùng)
         [HttpPost("remove-role")]
         [Authorize(Roles = nameof(RolesEnum.Admin))] 
         public async Task<IActionResult> RemoveRole([FromBody] AssignRoleRequestDto request) 
@@ -163,7 +157,6 @@ namespace FYP2025.Api.Features.Auth
         }
 
         // GET: api/auth/{userId}/roles
-        // API để lấy vai trò của người dùng (Chỉ Admin hoặc user đó mới được xem)
         [HttpGet("{userId}/roles")]
         [Authorize(Roles = nameof(RolesEnum.Admin))] 
         public async Task<IActionResult> GetUserRoles(string userId)
@@ -199,6 +192,29 @@ namespace FYP2025.Api.Features.Auth
         public IActionResult CustomerOnly()
         {
             return Ok("Chào mừng Customer! Bạn có quyền truy cập tài nguyên Customer.");
+        }
+
+        [HttpGet("total-users")]
+        [Authorize(Roles = nameof(RolesEnum.Admin))] 
+        public async Task<IActionResult> GetTotalUsers()
+        {
+            try
+            {
+                var count = await _authService.GetTotalUsersAsync();
+                return Ok(new
+                {
+                    IsSuccess = true,
+                    TotalUsers = count
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    IsSuccess = false,
+                    Errors = new List<string> { "Lỗi khi lấy tổng số user: " + ex.Message }
+                });
+            }
         }
     }
 }

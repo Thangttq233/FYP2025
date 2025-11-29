@@ -124,15 +124,10 @@ namespace FYP2025.Application.Services.ProductService
 
             if (productToUpdate == null)
                 throw new Exception($"Product with ID {trimmedId} not found.");
-
-            // Kiểm tra Category
             if (!await _categoryRepository.ExistsAsync(updateProductDto.CategoryId))
                 throw new Exception($"Category with ID {updateProductDto.CategoryId} does not exist.");
-
-            // --- Upload ảnh sản phẩm nếu có ---
             if (updateProductDto.ImageFile != null && updateProductDto.ImageFile.Length > 0)
             {
-                // Xoá ảnh cũ nếu có
                 if (!string.IsNullOrEmpty(productToUpdate.ImageUrl))
                 {
                     try
@@ -153,24 +148,17 @@ namespace FYP2025.Application.Services.ProductService
 
                 productToUpdate.ImageUrl = uploadResult.SecureUrl.ToString();
             }
-
-            // --- Cập nhật thông tin chung của sản phẩm ---
             _mapper.Map(updateProductDto, productToUpdate);
             productToUpdate.Id = trimmedId;
-
-            // --- Xử lý variants (chỉ thêm hoặc update, KHÔNG xoá) ---
             if (updateProductDto.Variants != null)
             {
                 foreach (var variantDto in updateProductDto.Variants)
                 {
                     if (string.IsNullOrEmpty(variantDto.Id))
                     {
-                        // 🔵 Thêm mới variant
                         var newVariant = _mapper.Map<ProductVariant>(variantDto);
                         newVariant.Id = Guid.NewGuid().ToString();
                         newVariant.ProductId = productToUpdate.Id;
-
-                        // Nếu có ảnh thì upload
                         if (variantDto.ImageFile != null && variantDto.ImageFile.Length > 0)
                         {
                             var uploadResult = await _photoService.UploadPhotoAsync(variantDto.ImageFile);
@@ -180,7 +168,6 @@ namespace FYP2025.Application.Services.ProductService
                         }
                         else
                         {
-                            // Nếu không có ảnh thì gán ảnh mặc định
                             newVariant.ImageUrl = "https://res.cloudinary.com/demo/image/upload/no-image.jpg";
                         }
 
@@ -188,11 +175,9 @@ namespace FYP2025.Application.Services.ProductService
                     }
                     else
                     {
-                        // 🟢 Update variant cũ
                         var existingVariant = productToUpdate.Variants.FirstOrDefault(v => v.Id == variantDto.Id);
                         if (existingVariant != null)
                         {
-                            // Nếu có ảnh mới thì upload và xoá ảnh cũ
                             if (variantDto.ImageFile != null && variantDto.ImageFile.Length > 0)
                             {
                                 if (!string.IsNullOrEmpty(existingVariant.ImageUrl))
@@ -214,8 +199,6 @@ namespace FYP2025.Application.Services.ProductService
                                     throw new Exception($"Failed to upload new variant image: {uploadResult.Error.Message}");
                                 existingVariant.ImageUrl = uploadResult.SecureUrl.ToString();
                             }
-
-                            // Cập nhật các trường còn lại
                             _mapper.Map(variantDto, existingVariant);
                         }
                     }
@@ -451,6 +434,17 @@ namespace FYP2025.Application.Services.ProductService
 
             product.Variants.Remove(variantToRemove);
             await _productRepository.UpdateAsync(product);
+        }
+
+        public async Task<IEnumerable<ProductDto>> SearchProductsAsync(string name, decimal? minPrice, decimal? maxPrice)
+        {
+            var products = await _productRepository.SearchProductsAsync(name, minPrice, maxPrice);
+            return _mapper.Map<IEnumerable<ProductDto>>(products);
+        }
+
+        public async Task<int> GetTotalStockQuantityAsync()
+        {
+            return await _productRepository.GetTotalStockQuantityAsync();
         }
     }
 }

@@ -27,7 +27,6 @@ namespace FYP2025.Api.Hubs
 
             if (recipient == null || sender == null)
             {
-                // Handle user not found scenario
                 return;
             }
 
@@ -43,22 +42,17 @@ namespace FYP2025.Api.Hubs
                 timestamp = savedMessage.Timestamp
             };
 
-            // Send the message to the recipient client
             await Clients.User(recipientUserId).SendAsync("ReceiveMessage", messageDto);
-
-            // Also send the message back to the sender client to confirm it was sent and update their UI
             await Clients.User(senderId).SendAsync("ReceiveMessage", messageDto);
         }
 
         public override async Task OnConnectedAsync()
         {
-            // You can add logic here to track online users, etc.
             await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(System.Exception exception)
         {
-            // You can add logic here to track online users, etc.
             await base.OnDisconnectedAsync(exception);
         }
     }

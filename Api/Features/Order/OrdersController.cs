@@ -22,7 +22,6 @@ namespace FYP2025.Api.Features.Order
             _vnpayService = vnpayService;
         }
 
-        // Lấy UserId từ JWT token
         private string GetUserId()
         {
             var userId = (User as ClaimsPrincipal)?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -111,7 +110,7 @@ namespace FYP2025.Api.Features.Order
             }
         }
 
-        // PUT: api/orders/update-status (Chỉ Admin hoặc Saler)
+        // PUT: api/orders/update-status 
         [HttpPut("update-status")]
         [Authorize(Roles = $"{nameof(RolesEnum.Admin)},{nameof(RolesEnum.Saler)}")]
         public async Task<IActionResult> UpdateOrderStatus([FromBody] UpdateOrderStatusRequestDto request)
@@ -159,11 +158,33 @@ namespace FYP2025.Api.Features.Order
         }
 
         [HttpGet]
-        [Authorize(Roles = $"{nameof(RolesEnum.Admin)},{nameof(RolesEnum.Saler)}")] // Chỉ Admin/Saler
+        [Authorize(Roles = $"{nameof(RolesEnum.Admin)},{nameof(RolesEnum.Saler)}")]
         public async Task<ActionResult<IEnumerable<OrderDto>>> GetAllOrdersForAdmin()
         {
             var orders = await _orderService.GetAllOrdersAsync();
             return Ok(orders);
+        }
+
+        [HttpGet("total-revenue")]
+        [Authorize(Roles = $"{nameof(RolesEnum.Admin)},{nameof(RolesEnum.Saler)}")]
+        public async Task<ActionResult<decimal>> GetTotalRevenue()
+        {
+            var total = await _orderService.GetTotalRevenueAsync();
+            return Ok(total);
+        }
+
+        [HttpGet("count")]
+        public async Task<IActionResult> GetTotalOrders()
+        {
+            try
+            {
+                var count = await _orderService.GetTotalOrdersAsync();
+                return Ok(new { totalOrders = count });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
 

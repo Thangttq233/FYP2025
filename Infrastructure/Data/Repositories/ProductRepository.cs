@@ -1,5 +1,4 @@
-﻿// FYP2025/Infrastructure/Data/Repositories/ProductRepository.cs
-using FYP2025.Domain.Entities;
+﻿using FYP2025.Domain.Entities;
 using FYP2025.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -8,43 +7,61 @@ using System.Linq;
 
 namespace FYP2025.Infrastructure.Data.Repositories
 {
-    // Kế thừa từ GenericRepository và triển khai IProductRepository
     public class ProductRepository : GenericRepository<Product>, IProductRepository
     {
-        // Constructor cần nhận ApplicationDbContext
         public ProductRepository(ApplicationDbContext context) : base(context)
         {
         }
 
-        // GHI ĐÈ phương thức GetByIdAsync từ GenericRepository để bao gồm Variants và Category
+        public async Task<IEnumerable<Product>> SearchProductsAsync(string name, decimal? minPrice, decimal? maxPrice)
+        {
+            var query = _context.Products
+                                .Include(p => p.Category)
+                                .Include(p => p.Variants)
+                                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(name))
+            {
+                query = query.Where(p => p.Name.Contains(name));
+            }
+
+            if (minPrice.HasValue)
+            {
+                query = query.Where(p => p.Variants.Any(v => v.Price >= minPrice.Value));
+            }
+
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(p => p.Variants.Any(v => v.Price <= maxPrice.Value));
+            }
+
+            return await query.ToListAsync();
+        }
+
         public override async Task<Product> GetByIdAsync(string id)
         {
             return await _context.Products
-                                 .Include(p => p.Category) // Thêm dòng này
+                                 .Include(p => p.Category) 
                                  .Include(p => p.Variants)
                                  .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        // GHI ĐÈ phương thức GetAllAsync từ GenericRepository để bao gồm Variants và Category
         public override async Task<IEnumerable<Product>> GetAllAsync()
         {
             return await _context.Products
-                                 .Include(p => p.Category) // Thêm dòng này
+                                 .Include(p => p.Category) 
                                  .Include(p => p.Variants)
                                  .ToListAsync();
         }
 
-        // TRIỂN KHAI phương thức GetProductsByCategoryIdAsync từ IProductRepository
         public async Task<IEnumerable<Product>> GetProductsByCategoryIdAsync(string categoryId)
         {
             return await _context.Products
                                  .Where(p => p.CategoryId == categoryId)
-                                 .Include(p => p.Category) // Thêm dòng này
-                                 .Include(p => p.Variants)
+                                 .Include(p => p.Category) 
                                  .ToListAsync();
         }
 
-        // TRIỂN KHAI phương thức GetProductVariantByIdAsync từ IProductRepository
         public async Task<ProductVariant> GetProductVariantByIdAsync(string productVariantId)
         {
             return await _context.ProductVariants
@@ -52,10 +69,15 @@ namespace FYP2025.Infrastructure.Data.Repositories
                                  .FirstOrDefaultAsync(pv => pv.Id == productVariantId);
         }
 
-        // TRIỂN KHAI phương thức ExistsAsync từ IGenericRepository (Nếu bạn có khai báo ở đó)
         public async Task<bool> ExistsAsync(string id)
         {
             return await _context.Products.AnyAsync(p => p.Id == id);
+        }
+
+        public async Task<int> GetTotalStockQuantityAsync()
+        {
+            // EF Core sẽ dịch cái này thành lệnh SQL: SELECT SUM(StockQuantity) FROM ProductVariants
+            return await _context.ProductVariants.SumAsync(v => v.StockQuantity);
         }
     }
 }

@@ -20,5 +20,7 @@ namespace FYP2025.Application.Services.ProductService
         Task<ProductVariantDto> AddProductVariantAsync(string productId, CreateProductVariantDto createVariantDto);
         Task UpdateProductVariantAsync(string productId, string variantId, UpdateProductVariantDto updateVariantDto);
         Task DeleteProductVariantAsync(string productId, string variantId);
+        Task<IEnumerable<ProductDto>> SearchProductsAsync(string name, decimal? minPrice, decimal? maxPrice);
+        Task<int> GetTotalStockQuantityAsync();
     }
 }

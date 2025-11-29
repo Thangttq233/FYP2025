@@ -38,7 +38,6 @@ namespace FYP2025.Api.Features.Chat
         [HttpGet("conversations/{conversationId}/messages")]
         public async Task<IActionResult> GetConversationMessages(int conversationId)
         {
-            // TODO: Add a check to ensure the current user is part of this conversation before returning messages.
             var messages = await _chatService.GetConversationMessagesAsync(conversationId);
             return Ok(messages);
         }

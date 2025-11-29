@@ -62,8 +62,8 @@ namespace FYP2025.Application.Services.Vnpay
         public async Task<string> CreateVnpayPaymentUrl(OrderDto order)
         {
             var ipAddr = "127.0.0.1";
-            var tmnCode = "00YLU7W1";
-            var secretKey = "B4EV9TU4ZA8J6QXPI5Q4A12MBVBU2DHV";
+            var tmnCode = "Z9IS49CN";
+            var secretKey = "27PTM3F7M727KRW3IJ1ZKP6LYJ6EZ4TT";
             var vnpUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
             var returnUrl = "http://localhost:5173/order-success";
             var amount = order.TotalPrice;
@@ -109,7 +109,7 @@ namespace FYP2025.Application.Services.Vnpay
 
         public async Task<object> HandleVnpayUrl(string responseCode, string orderId)
         {
-            if (responseCode == "00") // Thanh toán thành công
+            if (responseCode == "00") 
             {
                 try
                 {

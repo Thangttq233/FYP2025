@@ -19,7 +19,6 @@ namespace FYP2025.Api.Features.Cart
             _cartService = cartService;
         }
 
-        // Lấy UserId từ JWT token
         private string GetUserId()
         {
             var userId = (User as ClaimsPrincipal)?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -131,7 +130,7 @@ namespace FYP2025.Api.Features.Cart
             }
             catch (UnauthorizedAccessException)
             {
-                return Ok(0); // Nếu chưa login → trả về 0
+                return Ok(0); 
             }
         }
     }

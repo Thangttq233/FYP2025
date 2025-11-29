@@ -12,9 +12,6 @@ namespace FYP2025.Application.Services.Auth
         Task<AuthResponseDto> AssignRoleToUserAsync(string email, string roleName);
         Task<AuthResponseDto> RemoveRoleFromUserAsync(string email, string roleName);
         Task<List<string>> GetUserRolesAsync(string userId);
-        // Task<AuthResponseDto> LogoutAsync(string userId); 
-        // Task<UserDto> GetUserByIdAsync(string userId); 
-        // Task<UserDto> UpdateUserAsync(string userId, UpdateUserDto updateUserDto); 
-        // Task<bool> DeleteUserAsync(string userId); 
+        Task<int> GetTotalUsersAsync();
     }
 }

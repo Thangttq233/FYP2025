@@ -41,6 +41,17 @@ namespace FYP2025.Application.Services.OrderServices
             _dbContext = dbContext;
             //_vnpayService = vnpayService;
         }
+        public async Task<decimal> GetTotalRevenueAsync()
+        {
+            var orders = await _orderRepository.GetAllAsync();
+
+            var total = orders
+                .Where(o => o.PaymentStatus == PaymentStatus.Paid)
+                .Sum(o => o.TotalPrice);
+
+            return total;
+        }
+
 
         public async Task<OrderDto> CreateOrderFromCartAsync(string userId, CreateOrderRequestDto request)
         {
@@ -71,8 +82,6 @@ namespace FYP2025.Application.Services.OrderServices
                 {
                     throw new InvalidOperationException($"Không đủ tồn kho cho biến thể '{productVariant.Product.Name} - {productVariant.Color} - {productVariant.Size}'. Chỉ còn {productVariant.StockQuantity} sản phẩm.");
                 }
-
-                // TẠO OrderItem với snapshot data (để lưu giá tại thời điểm đặt hàng)
                 orderItems.Add(new OrderItem
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -88,13 +97,12 @@ namespace FYP2025.Application.Services.OrderServices
                 totalOrderPrice += cartItem.Quantity * productVariant.Price;
             }
 
-            // Tạo Order chính với trạng thái Pending
             var order = new Order
             {
                 Id = Guid.NewGuid().ToString(),
                 UserId = userId,
                 OrderDate = DateTime.UtcNow,
-                Status = OrderStatus.Pending, // Trạng thái ban đầu luôn là Pending
+                Status = OrderStatus.Pending, 
                 TotalPrice = totalOrderPrice,
                 ShippingAddress = request.ShippingAddress,
                 PhoneNumber = request.PhoneNumber,
@@ -103,8 +111,6 @@ namespace FYP2025.Application.Services.OrderServices
             };
 
             await _orderRepository.AddAsync(order);
-
-            // Xóa giỏ hàng sau khi tạo đơn hàng
             await _cartRepository.ClearCartAsync(cart.Id);
 
             var createdOrder = await _orderRepository.GetOrderDetailsAsync(order.Id);
@@ -143,6 +149,11 @@ namespace FYP2025.Application.Services.OrderServices
             var orders = await _orderRepository.GetAllAsync();
             var orderDtos = _mapper.Map<IEnumerable<OrderDto>>(orders);
             return orderDtos;
+        }
+
+        public async Task<int> GetTotalOrdersAsync()
+        {
+            return await _dbContext.Set<Order>().CountAsync();
         }
     }
 }

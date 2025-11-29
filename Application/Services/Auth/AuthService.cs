@@ -111,57 +111,41 @@ namespace FYP2025.Application.Services.Auth
       
         public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request, string ipAddress)
         {
-            // Bước 1: Giải mã Access Token đã hết hạn để lấy Principal (người dùng)
             var principal = GetPrincipalFromExpiredToken(request.AccessToken);
-            if (principal?.Identity?.Name == null) // Kiểm tra User Name từ token
+            if (principal?.Identity?.Name == null) 
             {
                 return new AuthResponseDto { IsSuccess = false, Errors = new List<string> { "Access Token không hợp lệ." } };
             }
-
-            // Bước 2: Tìm người dùng dựa trên UserName từ Access Token
             var user = await _userManager.FindByNameAsync(principal.Identity.Name);
             if (user == null)
             {
                 return new AuthResponseDto { IsSuccess = false, Errors = new List<string> { "Người dùng không tồn tại." } };
             }
-
-            // Bước 3: Tìm Refresh Token trong database của người dùng này
             var refreshToken = await _dbContext.RefreshTokens
                 .SingleOrDefaultAsync(rt => rt.Token == request.RefreshToken && rt.UserId == user.Id);
-
-            // Bước 4: Kiểm tra trạng thái của Refresh Token
             if (refreshToken == null)
             {
                 return new AuthResponseDto { IsSuccess = false, Errors = new List<string> { "Refresh Token không tìm thấy." } };
             }
-            if (refreshToken.Revoked != null) // Đã bị thu hồi (có thể là tấn công)
+            if (refreshToken.Revoked != null) 
             {
-                // Thu hồi tất cả các refresh token khác của user nếu phát hiện token bị thu hồi được sử dụng lại
                 await RevokeAllUserRefreshTokens(user.Id, "Attempted reuse of a revoked token detected.");
                 return new AuthResponseDto { IsSuccess = false, Errors = new List<string> { "Refresh Token đã bị thu hồi." } };
             }
-            if (refreshToken.Expires <= DateTime.UtcNow) // Đã hết hạn
+            if (refreshToken.Expires <= DateTime.UtcNow) 
             {
                 return new AuthResponseDto { IsSuccess = false, Errors = new List<string> { "Refresh Token đã hết hạn." } };
             }
 
-
-            // Bước 5: Thu hồi refresh token hiện tại và tạo token mới
             refreshToken.Revoked = DateTime.UtcNow;
             refreshToken.RevokedByIp = ipAddress;
-            // newAuthResponse.RefreshToken sẽ được gán cho replacedByToken sau khi tạo
             _dbContext.Update(refreshToken);
             await _dbContext.SaveChangesAsync();
-
-            // Tạo Access Token và Refresh Token mới
             var newAuthResponse = await GenerateJwtToken(user, ipAddress);
-                
-            // Cập nhật token cũ với replacedByToken
             refreshToken.ReplacedByToken = newAuthResponse.RefreshToken;
             _dbContext.Update(refreshToken);
             await _dbContext.SaveChangesAsync();
-
-            return newAuthResponse; // Trả về Access Token và Refresh Token mới
+            return newAuthResponse; 
         }
 
         public async Task<bool> RevokeRefreshTokenAsync(string token, string ipAddress)
@@ -171,7 +155,6 @@ namespace FYP2025.Application.Services.Auth
 
             if (refreshToken == null || refreshToken.Revoked != null || refreshToken.Expires <= DateTime.UtcNow)
             {
-                // Token không tìm thấy, hoặc đã bị thu hồi, hoặc đã hết hạn
                 return false;
             }
 
@@ -253,8 +236,8 @@ namespace FYP2025.Application.Services.Auth
             var secretKey = jwtSettings["Secret"];
             var issuer = jwtSettings["Issuer"];
             var audience = jwtSettings["Audience"];
-            var expiryMinutes = Convert.ToDouble(jwtSettings["ExpiryMinutes"] ?? "15"); // Access Token ngắn hạn (15 phút)
-            var refreshTokenExpiryDays = Convert.ToDouble(jwtSettings["RefreshTokenExpiryDays"] ?? "7"); // Refresh Token dài hạn (7 ngày)
+            var expiryMinutes = Convert.ToDouble(jwtSettings["ExpiryMinutes"] ?? "15"); 
+            var refreshTokenExpiryDays = Convert.ToDouble(jwtSettings["RefreshTokenExpiryDays"] ?? "7"); 
 
             var userRoles = await _userManager.GetRolesAsync(user);
 
@@ -275,7 +258,7 @@ namespace FYP2025.Application.Services.Auth
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expires = DateTime.UtcNow.AddMinutes(expiryMinutes); // Thời gian hết hạn của Access Token
+            var expires = DateTime.UtcNow.AddMinutes(expiryMinutes); 
 
             var token = new JwtSecurityToken(
                 issuer: issuer,
@@ -285,11 +268,11 @@ namespace FYP2025.Application.Services.Auth
                 signingCredentials: creds
             );
 
-            // Tạo Refresh Token
+
             var refreshToken = new RefreshToken
             {
-                Token = Guid.NewGuid().ToString("N"), // Chuỗi token ngẫu nhiên không có dấu gạch ngang
-                Expires = DateTime.UtcNow.AddDays(refreshTokenExpiryDays), // Hết hạn sau 7 ngày
+                Token = Guid.NewGuid().ToString("N"), 
+                Expires = DateTime.UtcNow.AddDays(refreshTokenExpiryDays), 
                 Created = DateTime.UtcNow,
                 CreatedByIp = ipAddress,
                 UserId = user.Id
@@ -307,20 +290,19 @@ namespace FYP2025.Application.Services.Auth
                 Roles = userRoles.ToList(),
                 Token = new JwtSecurityTokenHandler().WriteToken(token),
                 Expiration = expires,
-                RefreshToken = refreshToken.Token, // TRẢ VỀ REFRESH TOKEN
+                RefreshToken = refreshToken.Token, 
                 IsSuccess = true,
                 Errors = null
             };
         }
 
-        // Phương thức trợ giúp để giải mã Access Token đã hết hạn
         private ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
         {
             var tokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
                 ValidateAudience = true,
-                ValidateLifetime = false, // QUAN TRỌNG: Không xác thực thời gian sống khi giải mã token hết hạn
+                ValidateLifetime = false, 
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = _configuration.GetSection("JwtSettings")["Issuer"],
                 ValidAudience = _configuration.GetSection("JwtSettings")["Audience"],
@@ -330,9 +312,7 @@ namespace FYP2025.Application.Services.Auth
             var tokenHandler = new JwtSecurityTokenHandler();
             try
             {
-                // Validate token nhưng bỏ qua lỗi hết hạn
                 var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
-                // Đảm bảo token là JWT và thuật toán ký là HMAC SHA256
                 if (securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
                     throw new SecurityTokenException("Access Token không hợp lệ.");
 
@@ -344,8 +324,6 @@ namespace FYP2025.Application.Services.Auth
                 return null;
             }
         }
-
-        // Phương thức tùy chọn: Thu hồi tất cả refresh token của người dùng (ví dụ khi đổi mật khẩu, đăng nhập bất thường)
         private async Task RevokeAllUserRefreshTokens(string userId, string reason)
         {
             var refreshTokens = await _dbContext.RefreshTokens
@@ -359,6 +337,11 @@ namespace FYP2025.Application.Services.Auth
                 _dbContext.Update(token);
             }
             await _dbContext.SaveChangesAsync();
+        }
+
+        public async Task<int> GetTotalUsersAsync()
+        {
+            return await _userManager.Users.CountAsync();
         }
     }
 }
